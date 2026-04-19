@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/alpine.js" defer></script>
     <style>
+        [x-cloak] { display: none !important; }
         .teal-gradient {
             background: linear-gradient(to bottom right, #0d9488, #0b8277);
         }
@@ -43,7 +44,7 @@
     </div>
 
     <!-- App Shell -->
-    <div x-data="{ page: 'home', sidebarOpen: false, me: null, token: localStorage.getItem('token'), dashData: null, pengumumanList: [], toastShow: false, toastMessage: '' }" x-show="token" x-init="
+    <div x-data="{ page: 'home', sidebarOpen: false, me: null, token: localStorage.getItem('token'), dashData: null, pengumumanList: [], toastShow: false, toastMessage: '', searchOpen: false, searchQuery: '', searchResults: [], searchLoading: false }" x-show="token" x-init="
         fetch('/api/me',{headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).then(d=>{
             if(d.id) { me=d; loadDashboard(); } else { localStorage.removeItem('token'); location.reload(); }
         }).catch(()=>{ localStorage.removeItem('token'); location.reload(); });
@@ -57,12 +58,19 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                         </svg>
                     </button>
-                    <h1 class="text-xl font-bold">Sistem Absensi Pesantren</h1>
+                    <h1 class="text-xl font-bold">FAONSI</h1>
                 </div>
                 <div class="flex items-center space-x-3">
-                    <button class="text-white focus:outline-none">
+                    <!-- Search Button -->
+                    <button @click="searchOpen = !searchOpen" class="text-white focus:outline-none hover:bg-teal-700 rounded-lg p-1.5 transition">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8l-4 4m0 0l4 4m6-4h6"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                    </button>
+                    <!-- Logout -->
+                    <button @click="localStorage.removeItem('token'); location.reload();" class="text-white focus:outline-none hover:bg-teal-700 rounded-lg p-1.5 transition" title="Logout">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
                         </svg>
                     </button>
                 </div>
@@ -505,6 +513,58 @@
                 </a>
             </div>
         </nav>
+
+        <!-- Search Modal -->
+        <div x-show="searchOpen" x-cloak class="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center pt-20 z-50" @click.self="searchOpen = false" @keydown.escape.window="searchOpen = false" x-effect="if(searchOpen) $nextTick(() => $refs.searchInput?.focus())">
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+                <!-- Search Input -->
+                <div class="flex items-center px-4 py-3 border-b dark:border-gray-700">
+                    <svg class="w-5 h-5 text-gray-400 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    <input type="text" x-model="searchQuery" @input.debounce.300ms="
+                        if(searchQuery.length >= 2) {
+                            searchLoading = true;
+                            fetch('/api/santri?search='+encodeURIComponent(searchQuery), {headers:{'Authorization':'Bearer '+token}})
+                                .then(r=>r.json()).then(d=>{ searchResults = d||[]; searchLoading = false; })
+                                .catch(()=>{ searchResults = []; searchLoading = false; });
+                        } else { searchResults = []; }
+                    " placeholder="Cari santri (nama, kamar, NIS)..." class="flex-1 bg-transparent text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none text-sm" x-ref="searchInput">
+                    <button @click="searchOpen = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 ml-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <!-- Search Results -->
+                <div class="max-h-80 overflow-y-auto">
+                    <div x-show="searchLoading" class="p-6 text-center text-gray-400">
+                        <svg class="animate-spin w-6 h-6 mx-auto mb-2" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                        Mencari...
+                    </div>
+                    <div x-show="!searchLoading && searchQuery.length >= 2 && searchResults.length === 0" class="p-6 text-center text-gray-400">
+                        Tidak ditemukan
+                    </div>
+                    <div x-show="!searchLoading && searchQuery.length < 2" class="p-6 text-center text-gray-400 text-sm">
+                        Ketik minimal 2 karakter
+                    </div>
+                    <template x-for="s in searchResults" :key="s.id">
+                        <a href="#" @click.prevent="
+                            page = 'santri';
+                            // If we have a way to open santri detail, do it here
+                            searchOpen = false;
+                            toast('Membuka: ' + s.nama);
+                        " class="flex items-center px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 border-b dark:border-gray-700 transition">
+                            <div class="w-10 h-10 rounded-full bg-teal-100 dark:bg-teal-900 flex items-center justify-center text-teal-600 dark:text-teal-400 font-bold mr-3 flex-shrink-0" x-text="(s.nama || '?')[0].toUpperCase()"></div>
+                            <div class="flex-1 min-w-0">
+                                <div class="font-semibold text-gray-800 dark:text-white text-sm truncate" x-text="s.nama"></div>
+                                <div class="text-xs text-gray-400 flex items-center gap-2">
+                                    <span x-show="s.kamar" x-text="'🏠 ' + s.kamar"></span>
+                                    <span x-show="s.nis" x-text="'NIS: ' + s.nis"></span>
+                                </div>
+                            </div>
+                            <svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                        </a>
+                    </template>
+                </div>
+            </div>
+        </div>
 
         <!-- Modal Container -->
         <div x-data="{ modalOpen: false }" x-show="modalOpen" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

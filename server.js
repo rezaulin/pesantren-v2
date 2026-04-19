@@ -216,6 +216,13 @@ app.delete('/api/kamar/:id', authenticate, requireAdmin, (req, res) => {
 // ── Santri ─────────────────────────────────────────────
 app.get('/api/santri', authenticate, (req, res) => {
   let list = db.santri;
+  if (req.query.search) {
+    const q = req.query.search.toLowerCase();
+    list = list.filter(s => {
+      const kamar = db.kamar.find(x => x.id === s.kamar_id);
+      return (s.nama||'').toLowerCase().includes(q) || (s.nis||'').toLowerCase().includes(q) || String(s.id) === q || (kamar?.nama||'').toLowerCase().includes(q);
+    });
+  }
   if (req.query.kamar_id) list = list.filter(s => s.kamar_id == req.query.kamar_id);
   if (req.query.kelas_diniyyah) list = list.filter(s => s.kelas_diniyyah === req.query.kelas_diniyyah);
   if (req.query.kelompok_ngaji) list = list.filter(s => s.kelompok_ngaji === req.query.kelompok_ngaji);
