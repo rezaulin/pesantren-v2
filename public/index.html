@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistem Absensi Pesantren</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/alpine.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <style>
         [x-cloak] { display: none !important; }
         .teal-gradient {
@@ -24,9 +24,9 @@
         }
     </style>
 </head>
-<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-white min-h-screen">
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-white min-h-screen" x-data="{ page: 'login', sidebarOpen: false, searchOpen: false, searchQuery: '', searchResults: [], searchLoading: false, token: localStorage.getItem('token') }">
     <!-- Login Page -->
-    <div x-data="{ page: 'login' }" x-show="page === 'login'" class="teal-gradient min-h-screen flex items-center justify-center p-4">
+    <div x-show="page === 'login'" class="teal-gradient min-h-screen flex items-center justify-center p-4">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 w-full max-w-md">
             <h1 class="text-2xl font-bold text-center mb-6 text-teal-700 dark:text-teal-400">Login Sistem Absensi Pesantren</h1>
             <form class="space-y-4">
@@ -38,13 +38,19 @@
                     <label for="password" class="block text-sm font-medium mb-1">Password</label>
                     <input type="password" id="password" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="Masukkan password">
                 </div>
-                <button type="button" @click="page = 'home'" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2 px-4 rounded-lg transition">Masuk</button>
+                <button type="button" @click="
+                    fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:document.getElementById('username').value,password:document.getElementById('password').value})})
+                    .then(r=>r.json()).then(d=>{
+                        if(d.token){ token=d.token; localStorage.setItem('token',d.token); page='home'; }
+                        else alert(d.message||'Login gagal');
+                    }).catch(()=>alert('Koneksi gagal'));
+                " class="w-full bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2 px-4 rounded-lg transition" id="btnMasuk">Masuk</button>
             </form>
         </div>
     </div>
 
     <!-- App Shell -->
-    <div x-data="{ page: 'home', sidebarOpen: false, searchOpen: false, searchQuery: '', searchResults: [], searchLoading: false, token: localStorage.getItem('token') }" x-show="page !== 'login'" class="min-h-screen flex flex-col">
+    <div x-show="page !== 'login'" class="min-h-screen flex flex-col">
         <!-- Sticky Header -->
         <header class="sticky top-0 bg-teal-600 dark:bg-teal-900 text-white shadow-md z-30">
             <div class="container mx-auto px-4 py-3 flex justify-between items-center">
