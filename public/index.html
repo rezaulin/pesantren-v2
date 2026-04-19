@@ -25,25 +25,29 @@
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-white min-h-screen">
     <!-- Login Page -->
-    <div x-data="{ page: 'login' }" x-show="page === 'login'" class="teal-gradient min-h-screen flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 w-full max-w-md">
-            <h1 class="text-2xl font-bold text-center mb-6 text-teal-700 dark:text-teal-400">Login Sistem Absensi Pesantren</h1>
-            <form class="space-y-4">
-                <div>
-                    <label for="username" class="block text-sm font-medium mb-1">Username</label>
-                    <input type="text" id="username" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="Masukkan username">
-                </div>
-                <div>
-                    <label for="password" class="block text-sm font-medium mb-1">Password</label>
-                    <input type="password" id="password" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="Masukkan password">
-                </div>
-                <button type="button" @click="page = 'home'" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2 px-4 rounded-lg transition">Masuk</button>
-            </form>
+    <div x-show="!token" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-teal-700">
+        <div x-data="{ username: '', password: '', loginError: '' }" class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-md mx-4">
+            <h1 class="text-3xl font-extrabold text-teal-600 text-center mb-2">FAONSI</h1>
+            <p class="text-center text-gray-500 dark:text-gray-400 text-sm mb-6">Sistem Absensi Santri</p>
+            <p x-show="loginError" x-text="loginError" class="text-red-500 text-sm mb-3 text-center"></p>
+            <input x-model="username" type="text" placeholder="Username" class="w-full px-4 py-3 border dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 dark:text-white mb-3 focus:outline-none focus:ring-2 focus:ring-teal-500" @keyup.enter="$refs.pass.focus()">
+            <input x-model="password" x-ref="pass" type="password" placeholder="Password" class="w-full px-4 py-3 border dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 dark:text-white mb-4 focus:outline-none focus:ring-2 focus:ring-teal-500" @keyup.enter="$refs.loginBtn.click()">
+            <button x-ref="loginBtn" @click="
+                fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:username,password:password})})
+                .then(r=>r.json()).then(d=>{
+                    if(d.token){ localStorage.setItem('token',d.token); location.reload(); }
+                    else loginError=d.message||'Login gagal';
+                }).catch(()=>loginError='Koneksi gagal');
+            " class="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl transition shadow-lg">Masuk</button>
         </div>
     </div>
 
     <!-- App Shell -->
-    <div x-data="{ page: 'home', sidebarOpen: false }" x-show="page !== 'login'" class="min-h-screen flex flex-col">
+    <div x-data="{ page: 'home', sidebarOpen: false, me: null, token: localStorage.getItem('token'), dashData: null, pengumumanList: [], toastShow: false, toastMessage: '' }" x-show="token" x-init="
+        fetch('/api/me',{headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).then(d=>{
+            if(d.id) { me=d; loadDashboard(); } else { localStorage.removeItem('token'); location.reload(); }
+        }).catch(()=>{ localStorage.removeItem('token'); location.reload(); });
+    " class="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
         <!-- Sticky Header -->
         <header class="sticky top-0 bg-teal-600 dark:bg-teal-900 text-white shadow-md z-30">
             <div class="container mx-auto px-4 py-3 flex justify-between items-center">
@@ -233,10 +237,131 @@
 
             <!-- Main Content -->
             <main class="flex-1 p-4 md:ml-64">
+                <div class="max-w-6xl mx-auto">
+                <!-- HOME / DASHBOARD -->
                 <div class="page" x-show="page === 'home'">
-                    <h2 class="text-2xl font-bold mb-4">Beranda</h2>
-                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                        <p>Selamat datang di Sistem Absensi Pesantren</p>
+                    <!-- Welcome Banner -->
+                    <div class="bg-gradient-to-br from-gray-900 via-gray-800 to-teal-800 text-white rounded-2xl p-5 mb-5 shadow-lg">
+                        <h2 class="text-lg font-bold">Assalamu'alaikum, <span x-text="me?.nama || 'User'"></span></h2>
+                        <p class="text-sm opacity-80" x-text="new Date().toLocaleDateString('id-ID',{weekday:'long',year:'numeric',month:'long',day:'numeric'})"></p>
+                    </div>
+
+                    <!-- Stats Cards -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+                        <div class="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-xl p-4 text-center">
+                            <div class="text-2xl font-extrabold text-blue-600 dark:text-blue-400" x-text="dashData?.total_santri || 0"></div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Total Santri</div>
+                        </div>
+                        <div class="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-xl p-4 text-center">
+                            <div class="text-2xl font-extrabold text-green-600 dark:text-green-400" x-text="dashData?.hadir_hari_ini || 0"></div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Hadir Hari Ini</div>
+                        </div>
+                        <div class="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4 text-center">
+                            <div class="text-2xl font-extrabold text-yellow-600 dark:text-yellow-400" x-text="dashData?.izin_sakit || 0"></div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Izin/Sakit</div>
+                        </div>
+                        <div class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl p-4 text-center">
+                            <div class="text-2xl font-extrabold text-red-600 dark:text-red-400" x-text="dashData?.alfa || 0"></div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Alfa</div>
+                        </div>
+                    </div>
+
+                    <!-- MENU GRID: Mobile only (hidden on desktop because sidebar has them) -->
+                    <div class="md:hidden">
+                        <h3 class="text-sm font-bold text-gray-500 dark:text-gray-400 mb-3">📋 Operasional Harian</h3>
+                        <div class="grid grid-cols-4 gap-2 mb-4">
+                            <a @click="page='absensi'" class="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl p-3 text-center shadow-sm hover:shadow-md hover:-translate-y-0.5 transition cursor-pointer">
+                                <div class="text-2xl mb-1">✅</div>
+                                <div class="text-xs font-semibold text-gray-700 dark:text-gray-300">Absensi</div>
+                            </a>
+                            <a @click="page='absenmalam'" class="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl p-3 text-center shadow-sm hover:shadow-md hover:-translate-y-0.5 transition cursor-pointer">
+                                <div class="text-2xl mb-1">🌙</div>
+                                <div class="text-xs font-semibold text-gray-700 dark:text-gray-300">Absen Malam</div>
+                            </a>
+                            <a @click="page='absensekolah'" class="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl p-3 text-center shadow-sm hover:shadow-md hover:-translate-y-0.5 transition cursor-pointer">
+                                <div class="text-2xl mb-1">🏫</div>
+                                <div class="text-xs font-semibold text-gray-700 dark:text-gray-300">Absen Sekolah</div>
+                            </a>
+                            <a @click="page='pelanggaran'" class="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl p-3 text-center shadow-sm hover:shadow-md hover:-translate-y-0.5 transition cursor-pointer">
+                                <div class="text-2xl mb-1">⚠️</div>
+                                <div class="text-xs font-semibold text-gray-700 dark:text-gray-300">Pelanggaran</div>
+                            </a>
+                        </div>
+                        <h3 class="text-sm font-bold text-gray-500 dark:text-gray-400 mb-3">📁 Data Master</h3>
+                        <div class="grid grid-cols-4 gap-2 mb-4">
+                            <a @click="page='santri'" class="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl p-3 text-center shadow-sm hover:shadow-md hover:-translate-y-0.5 transition cursor-pointer">
+                                <div class="text-2xl mb-1">👨‍🎓</div>
+                                <div class="text-xs font-semibold text-gray-700 dark:text-gray-300">Santri</div>
+                            </a>
+                            <a @click="page='kamar'" class="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl p-3 text-center shadow-sm hover:shadow-md hover:-translate-y-0.5 transition cursor-pointer">
+                                <div class="text-2xl mb-1">🏠</div>
+                                <div class="text-xs font-semibold text-gray-700 dark:text-gray-300">Kamar</div>
+                            </a>
+                            <a @click="page='kegiatan'" class="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl p-3 text-center shadow-sm hover:shadow-md hover:-translate-y-0.5 transition cursor-pointer">
+                                <div class="text-2xl mb-1">📚</div>
+                                <div class="text-xs font-semibold text-gray-700 dark:text-gray-300">Kegiatan</div>
+                            </a>
+                            <a @click="page='users'" x-show="me?.role==='admin'" class="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl p-3 text-center shadow-sm hover:shadow-md hover:-translate-y-0.5 transition cursor-pointer">
+                                <div class="text-2xl mb-1">👥</div>
+                                <div class="text-xs font-semibold text-gray-700 dark:text-gray-300">Pengguna</div>
+                            </a>
+                        </div>
+                        <h3 class="text-sm font-bold text-gray-500 dark:text-gray-400 mb-3">📊 Laporan & Rekap</h3>
+                        <div class="grid grid-cols-4 gap-2 mb-4">
+                            <a @click="page='rekap'" class="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl p-3 text-center shadow-sm hover:shadow-md hover:-translate-y-0.5 transition cursor-pointer">
+                                <div class="text-2xl mb-1">📋</div>
+                                <div class="text-xs font-semibold text-gray-700 dark:text-gray-300">Rekap</div>
+                            </a>
+                            <a @click="page='raport'" class="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl p-3 text-center shadow-sm hover:shadow-md hover:-translate-y-0.5 transition cursor-pointer">
+                                <div class="text-2xl mb-1">📜</div>
+                                <div class="text-xs font-semibold text-gray-700 dark:text-gray-300">Raport</div>
+                            </a>
+                            <a @click="page='pengumuman'" class="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl p-3 text-center shadow-sm hover:shadow-md hover:-translate-y-0.5 transition cursor-pointer">
+                                <div class="text-2xl mb-1">📢</div>
+                                <div class="text-xs font-semibold text-gray-700 dark:text-gray-300">Pengumuman</div>
+                            </a>
+                            <a @click="page='catatan'" class="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl p-3 text-center shadow-sm hover:shadow-md hover:-translate-y-0.5 transition cursor-pointer">
+                                <div class="text-2xl mb-1">📝</div>
+                                <div class="text-xs font-semibold text-gray-700 dark:text-gray-300">Catatan</div>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- DESKTOP: Data widgets (hidden on mobile) -->
+                    <div class="hidden md:block">
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            <!-- Alfa Hari Ini -->
+                            <div class="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl p-5 shadow-sm">
+                                <h3 class="font-bold text-red-600 dark:text-red-400 mb-3">❌ Santri Alfa Hari Ini</h3>
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-sm">
+                                        <thead><tr class="text-left text-gray-500 dark:text-gray-400 border-b dark:border-gray-700"><th class="py-2">No</th><th>Nama</th><th>Kamar</th><th>Kegiatan</th></tr></thead>
+                                        <tbody>
+                                            <template x-for="(a,i) in (dashData?.alfa_list || [])" :key="i">
+                                                <tr class="border-b dark:border-gray-700">
+                                                    <td class="py-2" x-text="i+1"></td>
+                                                    <td class="font-semibold" x-text="a.nama"></td>
+                                                    <td x-text="a.kamar || '-'"></td>
+                                                    <td x-text="a.kegiatan || '-'"></td>
+                                                </tr>
+                                            </template>
+                                            <tr x-show="!dashData?.alfa_list?.length"><td colspan="4" class="py-3 text-center text-gray-400">Tidak ada alfa hari ini ✅</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <!-- Pengumuman Terbaru -->
+                            <div class="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl p-5 shadow-sm">
+                                <h3 class="font-bold text-teal-600 dark:text-teal-400 mb-3">📢 Pengumuman Terbaru</h3>
+                                <template x-for="a in (pengumumanList || []).slice(0,5)" :key="a.id">
+                                    <div class="py-2 border-b dark:border-gray-700">
+                                        <div class="font-semibold text-sm" x-text="a.judul"></div>
+                                        <div class="text-xs text-gray-400 mt-0.5" x-text="(a.created_by_nama || 'Admin') + ' • ' + new Date(a.created_at).toLocaleDateString('id-ID')"></div>
+                                    </div>
+                                </template>
+                                <p x-show="!pengumumanList?.length" class="text-gray-400 text-sm">Belum ada pengumuman</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="page" x-show="page === 'absensi'">
@@ -347,6 +472,7 @@
                         <p>Halaman Catatan Anak</p>
                     </div>
                 </div>
+                </div><!-- /max-w container -->
             </main>
         </div>
 
@@ -400,139 +526,56 @@
 
 
 <script>
-// === Auth & Navigation ===
-document.addEventListener('alpine:init', () => {
-        Alpine.data('app', () => ({
-            token: localStorage.getItem('token') || '',
-            isLoggedIn: !!localStorage.getItem('token'),
-            activeTab: 'dashboard',
-            sidebarOpen: false,
-            darkMode: localStorage.getItem('darkMode') === 'true',
-            dashboardData: {
-                total_santri: 0,
-                hadir_hari_ini: 0,
-                izin_sakit: 0,
-                alfa: 0,
-                alfa_list: [],
-                pengumuman: ''
-            },
-            searchQuery: '',
-            searchResults: [],
-            toastMsg: '',
-            toastVisible: false,
+// Global helper
+function api(path, opts={}) {
+    const token = localStorage.getItem('token');
+    return fetch(path, {
+        ...opts,
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer '+(token||''), ...(opts.headers||{}) }
+    }).then(r => { if(r.status===401){ localStorage.removeItem('token'); location.reload(); } return r.json(); });
+}
 
-            init() {
-                if (this.darkMode) {
-                    document.documentElement.classList.add('dark');
-                }
-                if (this.isLoggedIn) {
-                    this.loadDashboard();
-                }
-            },
-
-            doLogin(username, password) {
-                fetch('/api/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.token) {
-                        this.token = data.token;
-                        localStorage.setItem('token', data.token);
-                        this.isLoggedIn = true;
-                        this.loadDashboard();
-                        this.toast('Login berhasil');
-                    } else {
-                        this.toast('Login gagal');
-                    }
-                })
-                .catch(() => this.toast('Terjadi kesalahan'));
-            },
-
-            logout() {
-                this.token = '';
-                localStorage.removeItem('token');
-                this.isLoggedIn = false;
-                this.toast('Logout berhasil');
-            },
-
-            switchTab(tab) {
-                this.activeTab = tab;
-            },
-
-            toggleSidebar() {
-                this.sidebarOpen = !this.sidebarOpen;
-            },
-
-            toggleDarkMode() {
-                this.darkMode = !this.darkMode;
-                localStorage.setItem('darkMode', this.darkMode);
-                document.documentElement.classList.toggle('dark', this.darkMode);
-            },
-
-            loadDashboard() {
-                fetch('/api/dashboard', {
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + this.token
-                    }
-                })
-                .then(res => {
-                    if (res.status === 401) {
-                        this.logout();
-                        throw new Error('Unauthorized');
-                    }
-                    return res.json();
-                })
-                .then(data => {
-                    this.dashboardData = data;
-                })
-                .catch(err => {
-                    if (err.message !== 'Unauthorized') {
-                        this.toast('Gagal memuat data dashboard');
-                    }
-                });
-            },
-
-            toast(msg) {
-                this.toastMsg = msg;
-                this.toastVisible = true;
-                setTimeout(() => {
-                    this.toastVisible = false;
-                }, 3000);
-            },
-
-            searchSantri(query) {
-                if (!query) {
-                    this.searchResults = [];
-                    return;
-                }
-                fetch(`/api/santri?q=${encodeURIComponent(query)}`, {
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + this.token
-                    }
-                })
-                .then(res => {
-                    if (res.status === 401) {
-                        this.logout();
-                        throw new Error('Unauthorized');
-                    }
-                    return res.json();
-                })
-                .then(data => {
-                    this.searchResults = data;
-                })
-                .catch(err => {
-                    if (err.message !== 'Unauthorized') {
-                        this.toast('Gagal mencari santri');
-                    }
-                });
-            }
-        }));
+// Dashboard
+function loadDashboard() {
+    api('/api/dashboard').then(d => {
+        if(!d) return;
+        // Update Alpine state via closest x-data
+        const appEl = document.querySelector('[x-data]');
+        if(appEl && appEl.__x) {
+            appEl.__x.$data.dashData = d;
+        }
     });
+    api('/api/pengumuman').then(d => {
+        const appEl = document.querySelector('[x-data]');
+        if(appEl && appEl.__x && d) {
+            appEl.__x.$data.pengumumanList = d;
+        }
+    });
+}
+
+// Dark mode
+function toggleDarkMode() {
+    document.documentElement.classList.toggle('dark');
+    localStorage.setItem('darkMode', document.documentElement.classList.contains('dark'));
+}
+// Init dark mode
+if(localStorage.getItem('darkMode') === 'true') document.documentElement.classList.add('dark');
+
+// Toast
+function toast(msg) {
+    const appEl = document.querySelector('[x-data]');
+    if(appEl && appEl.__x) {
+        appEl.__x.$data.toastMessage = msg;
+        appEl.__x.$data.toastShow = true;
+        setTimeout(() => { appEl.__x.$data.toastShow = false; }, 2500);
+    }
+}
+
+// Logout
+function doLogout() {
+    localStorage.removeItem('token');
+    location.reload();
+}
 
 // === Absensi ===
 let absensiData = [];
