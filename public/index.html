@@ -146,7 +146,7 @@
         <!-- Main Content with Sidebar -->
         <div class="flex flex-1 relative">
             <!-- Sidebar Drawer -->
-            <aside class="sidebar fixed md:static inset-y-0 left-0 w-64 bg-gray-800 dark:bg-gray-900 text-white shadow-lg z-20" :class="{ 'hidden': !sidebarOpen }" @click.away="sidebarOpen = false">
+            <aside class="sidebar fixed md:static inset-y-0 left-0 w-64 bg-gray-800 dark:bg-gray-900 text-white shadow-lg z-20 hidden md:block" :class="{ '!block': sidebarOpen }" @click.away="sidebarOpen = false">
                 <div class="p-4">
                     <h2 class="text-lg font-semibold mb-4">Navigasi</h2>
                     <ul class="space-y-2">
@@ -306,6 +306,11 @@
                             </a>
                         </li>
                     </ul>
+                    <div class="mt-6 pt-4 border-t border-gray-700">
+                        <button @click="token=''; localStorage.removeItem('token'); page='login'; user=null; role=''" class="flex items-center px-3 py-2 rounded-lg hover:bg-red-600 transition w-full text-left text-red-400 hover:text-white">
+                            🚪 Keluar
+                        </button>
+                    </div>
                 </div>
             </aside>
 
@@ -450,28 +455,313 @@
                         <p>Halaman Absen Sekolah</p>
                     </div>
                 </div>
-                <div class="page" x-show="page === 'santri'">
-                    <h2 class="text-2xl font-bold mb-4">Data Santri</h2>
-                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                        <p>Halaman Data Santri</p>
+                <div class="page" x-show="page === 'santri'" x-data="{
+                    santriList: [],
+                    kamarList: [],
+                    showModal: false,
+                    editId: null,
+                    form: { nama:'', kamar_id:'', kelompok_ngaji:'', jenis_bakat:'', kelas_diniyyah:'', kelompok_ngaji_malam:'', kelas_sekolah:'', alamat:'', status:'aktif' },
+                    load() {
+                        fetch('/api/santri', { headers:{'Authorization':'Bearer '+token} })
+                        .then(r=>r.json()).then(d=>{ this.santriList=d; });
+                        fetch('/api/kamar', { headers:{'Authorization':'Bearer '+token} })
+                        .then(r=>r.json()).then(d=>{ this.kamarList=d; });
+                    },
+                    openAdd() {
+                        this.editId=null;
+                        this.form={nama:'',kamar_id:'',kelompok_ngaji:'',jenis_bakat:'',kelas_diniyyah:'',kelompok_ngaji_malam:'',kelas_sekolah:'',alamat:'',status:'aktif'};
+                        this.showModal=true;
+                    },
+                    openEdit(s) {
+                        this.editId=s.id;
+                        this.form={nama:s.nama||'',kamar_id:s.kamar_id||'',kelompok_ngaji:s.kelompok_ngaji||'',jenis_bakat:s.jenis_bakat||'',kelas_diniyyah:s.kelas_diniyyah||'',kelompok_ngaji_malam:s.kelompok_ngaji_malam||'',kelas_sekolah:s.kelas_sekolah||'',alamat:s.alamat||'',status:s.status||'aktif'};
+                        this.showModal=true;
+                    },
+                    save() {
+                        const url = this.editId ? '/api/santri/'+this.editId : '/api/santri';
+                        const method = this.editId ? 'PUT' : 'POST';
+                        fetch(url, { method, headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body:JSON.stringify(this.form) })
+                        .then(r=>r.json()).then(()=>{ this.showModal=false; this.load(); });
+                    },
+                    del(id) {
+                        if(!confirm('Hapus santri ini?')) return;
+                        fetch('/api/santri/'+id, { method:'DELETE', headers:{'Authorization':'Bearer '+token} })
+                        .then(()=>this.load());
+                    },
+                    init() { this.load(); }
+                }">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold">Data Santri</h2>
+                        <button @click="openAdd()" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-semibold">+ Tambah</button>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50 dark:bg-gray-700">
+                                <tr>
+                                    <th class="px-3 py-2 text-left">No</th>
+                                    <th class="px-3 py-2 text-left">Nama</th>
+                                    <th class="px-3 py-2 text-left">Kamar</th>
+                                    <th class="px-3 py-2 text-left">Kelompok Ngaji</th>
+                                    <th class="px-3 py-2 text-left">Bakat</th>
+                                    <th class="px-3 py-2 text-left">Kelas Diniyyah</th>
+                                    <th class="px-3 py-2 text-left">Kelas Sekolah</th>
+                                    <th class="px-3 py-2 text-left">Status</th>
+                                    <th class="px-3 py-2 text-left">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="(s,i) in santriList" :key="s.id">
+                                    <tr class="border-t dark:border-gray-700">
+                                        <td class="px-3 py-2" x-text="i+1"></td>
+                                        <td class="px-3 py-2 font-medium" x-text="s.nama"></td>
+                                        <td class="px-3 py-2" x-text="s.kamar_nama || '-'"></td>
+                                        <td class="px-3 py-2" x-text="s.kelompok_ngaji || '-'"></td>
+                                        <td class="px-3 py-2" x-text="s.jenis_bakat || '-'"></td>
+                                        <td class="px-3 py-2" x-text="s.kelas_diniyyah || '-'"></td>
+                                        <td class="px-3 py-2" x-text="s.kelas_sekolah || '-'"></td>
+                                        <td class="px-3 py-2"><span :class="s.status==='aktif'?'text-green-600':'text-red-600'" x-text="s.status"></span></td>
+                                        <td class="px-3 py-2">
+                                            <button @click="openEdit(s)" class="text-blue-500 hover:underline mr-2">✏️</button>
+                                            <button @click="del(s.id)" class="text-red-500 hover:underline">🗑️</button>
+                                        </td>
+                                    </tr>
+                                </template>
+                                <tr x-show="santriList.length===0"><td colspan="9" class="px-3 py-4 text-center text-gray-400">Tidak ada data</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- Modal -->
+                    <div x-show="showModal" x-cloak class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" @click.self="showModal=false">
+                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6">
+                            <h3 class="text-lg font-bold mb-4" x-text="editId ? 'Edit Santri' : 'Tambah Santri'"></h3>
+                            <div class="space-y-3">
+                                <div><label class="block text-sm mb-1">Nama</label><input type="text" x-model="form.nama" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"></div>
+                                <div><label class="block text-sm mb-1">Kamar</label>
+                                    <select x-model="form.kamar_id" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600">
+                                        <option value="">-- Pilih --</option>
+                                        <template x-for="k in kamarList" :key="k.id"><option :value="k.id" x-text="k.nama"></option></template>
+                                    </select>
+                                </div>
+                                <div><label class="block text-sm mb-1">Kelompok Ngaji</label><input type="text" x-model="form.kelompok_ngaji" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"></div>
+                                <div><label class="block text-sm mb-1">Jenis Bakat</label><input type="text" x-model="form.jenis_bakat" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"></div>
+                                <div><label class="block text-sm mb-1">Kelas Diniyyah</label><input type="text" x-model="form.kelas_diniyyah" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"></div>
+                                <div><label class="block text-sm mb-1">Kelas Sekolah</label><input type="text" x-model="form.kelas_sekolah" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"></div>
+                                <div><label class="block text-sm mb-1">Kelompok Ngaji Malam</label><input type="text" x-model="form.kelompok_ngaji_malam" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"></div>
+                                <div><label class="block text-sm mb-1">Alamat</label><textarea x-model="form.alamat" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600" rows="2"></textarea></div>
+                                <div><label class="block text-sm mb-1">Status</label>
+                                    <select x-model="form.status" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600">
+                                        <option value="aktif">Aktif</option>
+                                        <option value="nonaktif">Nonaktif</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="flex justify-end gap-2 mt-4">
+                                <button @click="showModal=false" class="px-4 py-2 border rounded-lg dark:border-gray-600">Batal</button>
+                                <button @click="save()" class="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700">Simpan</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="page" x-show="page === 'kamar'">
-                    <h2 class="text-2xl font-bold mb-4">Data Kamar</h2>
-                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                        <p>Halaman Data Kamar</p>
+                <div class="page" x-show="page === 'kamar'" x-data="{
+                    list: [],
+                    showModal: false,
+                    editId: null,
+                    form: { nama:'', kapasitas:'' },
+                    load() {
+                        fetch('/api/kamar', { headers:{'Authorization':'Bearer '+token} })
+                        .then(r=>r.json()).then(d=>{ this.list=d; });
+                    },
+                    openAdd() { this.editId=null; this.form={nama:'',kapasitas:''}; this.showModal=true; },
+                    openEdit(k) { this.editId=k.id; this.form={nama:k.nama||'',kapasitas:k.kapasitas||''}; this.showModal=true; },
+                    save() {
+                        const url = this.editId ? '/api/kamar/'+this.editId : '/api/kamar';
+                        const method = this.editId ? 'PUT' : 'POST';
+                        fetch(url, { method, headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body:JSON.stringify(this.form) })
+                        .then(r=>r.json()).then(()=>{ this.showModal=false; this.load(); });
+                    },
+                    del(id) {
+                        if(!confirm('Hapus kamar ini?')) return;
+                        fetch('/api/kamar/'+id, { method:'DELETE', headers:{'Authorization':'Bearer '+token} })
+                        .then(()=>this.load());
+                    },
+                    init() { this.load(); }
+                }">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold">Data Kamar</h2>
+                        <button @click="openAdd()" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-semibold">+ Tambah</button>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50 dark:bg-gray-700"><tr><th class="px-3 py-2 text-left">No</th><th class="px-3 py-2 text-left">Nama</th><th class="px-3 py-2 text-left">Kapasitas</th><th class="px-3 py-2 text-left">Aksi</th></tr></thead>
+                            <tbody>
+                                <template x-for="(k,i) in list" :key="k.id">
+                                    <tr class="border-t dark:border-gray-700">
+                                        <td class="px-3 py-2" x-text="i+1"></td>
+                                        <td class="px-3 py-2 font-medium" x-text="k.nama"></td>
+                                        <td class="px-3 py-2" x-text="k.kapasitas || '-'"></td>
+                                        <td class="px-3 py-2">
+                                            <button @click="openEdit(k)" class="text-blue-500 hover:underline mr-2">✏️</button>
+                                            <button @click="del(k.id)" class="text-red-500 hover:underline">🗑️</button>
+                                        </td>
+                                    </tr>
+                                </template>
+                                <tr x-show="list.length===0"><td colspan="4" class="px-3 py-4 text-center text-gray-400">Tidak ada data</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div x-show="showModal" x-cloak class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" @click.self="showModal=false">
+                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6">
+                            <h3 class="text-lg font-bold mb-4" x-text="editId?'Edit Kamar':'Tambah Kamar'"></h3>
+                            <div class="space-y-3">
+                                <div><label class="block text-sm mb-1">Nama Kamar</label><input type="text" x-model="form.nama" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"></div>
+                                <div><label class="block text-sm mb-1">Kapasitas</label><input type="number" x-model="form.kapasitas" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"></div>
+                            </div>
+                            <div class="flex justify-end gap-2 mt-4">
+                                <button @click="showModal=false" class="px-4 py-2 border rounded-lg dark:border-gray-600">Batal</button>
+                                <button @click="save()" class="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700">Simpan</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="page" x-show="page === 'kegiatan'">
-                    <h2 class="text-2xl font-bold mb-4">Data Kegiatan</h2>
-                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                        <p>Halaman Data Kegiatan</p>
+                <div class="page" x-show="page === 'kegiatan'" x-data="{
+                    list: [],
+                    showModal: false,
+                    editId: null,
+                    form: { nama:'', hari:'', jam_mulai:'', jam_selesai:'' },
+                    load() {
+                        fetch('/api/kegiatan', { headers:{'Authorization':'Bearer '+token} })
+                        .then(r=>r.json()).then(d=>{ this.list=d; });
+                    },
+                    openAdd() { this.editId=null; this.form={nama:'',hari:'',jam_mulai:'',jam_selesai:''}; this.showModal=true; },
+                    openEdit(k) { this.editId=k.id; this.form={nama:k.nama||'',hari:k.hari||'',jam_mulai:k.jam_mulai||'',jam_selesai:k.jam_selesai||''}; this.showModal=true; },
+                    save() {
+                        const url = this.editId ? '/api/kegiatan/'+this.editId : '/api/kegiatan';
+                        const method = this.editId ? 'PUT' : 'POST';
+                        fetch(url, { method, headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body:JSON.stringify(this.form) })
+                        .then(r=>r.json()).then(()=>{ this.showModal=false; this.load(); });
+                    },
+                    del(id) {
+                        if(!confirm('Hapus kegiatan ini?')) return;
+                        fetch('/api/kegiatan/'+id, { method:'DELETE', headers:{'Authorization':'Bearer '+token} })
+                        .then(()=>this.load());
+                    },
+                    init() { this.load(); }
+                }">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold">Data Kegiatan</h2>
+                        <button @click="openAdd()" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-semibold">+ Tambah</button>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50 dark:bg-gray-700"><tr><th class="px-3 py-2 text-left">No</th><th class="px-3 py-2 text-left">Nama</th><th class="px-3 py-2 text-left">Hari</th><th class="px-3 py-2 text-left">Jam</th><th class="px-3 py-2 text-left">Aksi</th></tr></thead>
+                            <tbody>
+                                <template x-for="(k,i) in list" :key="k.id">
+                                    <tr class="border-t dark:border-gray-700">
+                                        <td class="px-3 py-2" x-text="i+1"></td>
+                                        <td class="px-3 py-2 font-medium" x-text="k.nama"></td>
+                                        <td class="px-3 py-2" x-text="k.hari || '-'"></td>
+                                        <td class="px-3 py-2" x-text="(k.jam_mulai||'-') + ' - ' + (k.jam_selesai||'-')"></td>
+                                        <td class="px-3 py-2">
+                                            <button @click="openEdit(k)" class="text-blue-500 hover:underline mr-2">✏️</button>
+                                            <button @click="del(k.id)" class="text-red-500 hover:underline">🗑️</button>
+                                        </td>
+                                    </tr>
+                                </template>
+                                <tr x-show="list.length===0"><td colspan="5" class="px-3 py-4 text-center text-gray-400">Tidak ada data</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div x-show="showModal" x-cloak class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" @click.self="showModal=false">
+                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6">
+                            <h3 class="text-lg font-bold mb-4" x-text="editId?'Edit Kegiatan':'Tambah Kegiatan'"></h3>
+                            <div class="space-y-3">
+                                <div><label class="block text-sm mb-1">Nama Kegiatan</label><input type="text" x-model="form.nama" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"></div>
+                                <div><label class="block text-sm mb-1">Hari</label>
+                                    <select x-model="form.hari" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600">
+                                        <option value="">-- Pilih --</option>
+                                        <option>Senin</option><option>Selasa</option><option>Rabu</option><option>Kamis</option><option>Jumat</option><option>Sabtu</option><option>Minggu</option>
+                                    </select>
+                                </div>
+                                <div><label class="block text-sm mb-1">Jam Mulai</label><input type="time" x-model="form.jam_mulai" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"></div>
+                                <div><label class="block text-sm mb-1">Jam Selesai</label><input type="time" x-model="form.jam_selesai" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"></div>
+                            </div>
+                            <div class="flex justify-end gap-2 mt-4">
+                                <button @click="showModal=false" class="px-4 py-2 border rounded-lg dark:border-gray-600">Batal</button>
+                                <button @click="save()" class="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700">Simpan</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="page" x-show="page === 'users'">
-                    <h2 class="text-2xl font-bold mb-4">Pengguna</h2>
-                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                        <p>Halaman Pengguna</p>
+                <div class="page" x-show="page === 'users'" x-data="{
+                    list: [],
+                    showModal: false,
+                    editId: null,
+                    form: { username:'', password:'', role:'ustadz', nama:'' },
+                    load() {
+                        fetch('/api/users', { headers:{'Authorization':'Bearer '+token} })
+                        .then(r=>r.json()).then(d=>{ this.list=d; });
+                    },
+                    openAdd() { this.editId=null; this.form={username:'',password:'',role:'ustadz',nama:''}; this.showModal=true; },
+                    openEdit(u) { this.editId=u.id; this.form={username:u.username||'',password:'',role:u.role||'ustadz',nama:u.nama||''}; this.showModal=true; },
+                    save() {
+                        const body = {...this.form};
+                        if(this.editId && !body.password) delete body.password;
+                        const url = this.editId ? '/api/users/'+this.editId : '/api/users';
+                        const method = this.editId ? 'PUT' : 'POST';
+                        fetch(url, { method, headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body:JSON.stringify(body) })
+                        .then(r=>r.json()).then(()=>{ this.showModal=false; this.load(); });
+                    },
+                    del(id) {
+                        if(!confirm('Hapus user ini?')) return;
+                        fetch('/api/users/'+id, { method:'DELETE', headers:{'Authorization':'Bearer '+token} })
+                        .then(()=>this.load());
+                    },
+                    init() { this.load(); }
+                }">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold">Kelola Pengguna</h2>
+                        <button @click="openAdd()" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-semibold">+ Tambah</button>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50 dark:bg-gray-700"><tr><th class="px-3 py-2 text-left">No</th><th class="px-3 py-2 text-left">Nama</th><th class="px-3 py-2 text-left">Username</th><th class="px-3 py-2 text-left">Role</th><th class="px-3 py-2 text-left">Aksi</th></tr></thead>
+                            <tbody>
+                                <template x-for="(u,i) in list" :key="u.id">
+                                    <tr class="border-t dark:border-gray-700">
+                                        <td class="px-3 py-2" x-text="i+1"></td>
+                                        <td class="px-3 py-2 font-medium" x-text="u.nama"></td>
+                                        <td class="px-3 py-2" x-text="u.username"></td>
+                                        <td class="px-3 py-2"><span class="px-2 py-0.5 rounded text-xs" :class="u.role==='admin'?'bg-red-100 text-red-700':u.role==='ustadz'?'bg-blue-100 text-blue-700':'bg-gray-100 text-gray-700'" x-text="u.role"></span></td>
+                                        <td class="px-3 py-2">
+                                            <button @click="openEdit(u)" class="text-blue-500 hover:underline mr-2">✏️</button>
+                                            <button @click="del(u.id)" class="text-red-500 hover:underline">🗑️</button>
+                                        </td>
+                                    </tr>
+                                </template>
+                                <tr x-show="list.length===0"><td colspan="5" class="px-3 py-4 text-center text-gray-400">Tidak ada data</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div x-show="showModal" x-cloak class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" @click.self="showModal=false">
+                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6">
+                            <h3 class="text-lg font-bold mb-4" x-text="editId?'Edit Pengguna':'Tambah Pengguna'"></h3>
+                            <div class="space-y-3">
+                                <div><label class="block text-sm mb-1">Nama</label><input type="text" x-model="form.nama" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"></div>
+                                <div><label class="block text-sm mb-1">Username</label><input type="text" x-model="form.username" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"></div>
+                                <div><label class="block text-sm mb-1">Password <span x-show="editId" class="text-gray-400">(kosong = tidak diubah)</span></label><input type="password" x-model="form.password" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"></div>
+                                <div><label class="block text-sm mb-1">Role</label>
+                                    <select x-model="form.role" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600">
+                                        <option value="admin">Admin</option>
+                                        <option value="ustadz">Ustadz</option>
+                                        <option value="wali">Wali</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="flex justify-end gap-2 mt-4">
+                                <button @click="showModal=false" class="px-4 py-2 border rounded-lg dark:border-gray-600">Batal</button>
+                                <button @click="save()" class="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700">Simpan</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="page" x-show="page === 'rekap'">
