@@ -24,7 +24,47 @@
         }
     </style>
 </head>
-<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-white min-h-screen" x-data="{ page: 'login', sidebarOpen: false, searchOpen: false, searchQuery: '', searchResults: [], searchLoading: false, token: localStorage.getItem('token') }">
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-white min-h-screen" x-data="{
+    page: 'login',
+    sidebarOpen: false,
+    searchOpen: false,
+    searchQuery: '',
+    searchResults: [],
+    searchLoading: false,
+    token: localStorage.getItem('token'),
+    user: null,
+    role: '',
+    dashboardData: { total_santri: 0, total_kamar: 0, hadir_hari_ini: 0, izin_sakit: 0, alfa: 0, alfa_list: [], pengumuman: [] },
+    loadDashboard() {
+        if (!this.token) return;
+        fetch('/api/dashboard', { headers: { 'Authorization': 'Bearer ' + this.token } })
+        .then(r => { if(r.status===401){ this.page='login'; throw 0; } return r.json(); })
+        .then(d => { this.dashboardData = d; })
+        .catch(() => {});
+    },
+    loadMe() {
+        if (!this.token) return;
+        fetch('/api/me', { headers: { 'Authorization': 'Bearer ' + this.token } })
+        .then(r => { if(r.status===401){ this.page='login'; throw 0; } return r.json(); })
+        .then(d => { this.user = d; this.role = d.role || ''; this.loadDashboard(); })
+        .catch(() => {});
+    },
+    login(username, password) {
+        fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username, password}) })
+        .then(r => r.json())
+        .then(d => {
+            if(d.token) {
+                this.token = d.token;
+                localStorage.setItem('token', d.token);
+                this.page = 'home';
+                this.loadMe();
+            }
+        });
+    },
+    init() {
+        if (this.token) { this.page = 'home'; this.loadMe(); }
+    }
+}">
     <!-- Login Page -->
     <div x-show="page === 'login'" class="teal-gradient min-h-screen flex items-center justify-center p-4">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 w-full max-w-md">
@@ -38,13 +78,7 @@
                     <label for="password" class="block text-sm font-medium mb-1">Password</label>
                     <input type="password" id="password" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="Masukkan password">
                 </div>
-                <button type="button" @click="
-                    fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:document.getElementById('username').value,password:document.getElementById('password').value})})
-                    .then(r=>r.json()).then(d=>{
-                        if(d.token){ token=d.token; localStorage.setItem('token',d.token); page='home'; }
-                        else alert(d.message||'Login gagal');
-                    }).catch(()=>alert('Koneksi gagal'));
-                " class="w-full bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2 px-4 rounded-lg transition" id="btnMasuk">Masuk</button>
+                <button type="button" @click="login(document.getElementById('username').value, document.getElementById('password').value)" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2 px-4 rounded-lg transition" id="btnMasuk">Masuk</button>
             </form>
         </div>
     </div>
@@ -278,9 +312,124 @@
             <!-- Main Content -->
             <main class="flex-1 p-4 md:ml-64">
                 <div class="page" x-show="page === 'home'">
-                    <h2 class="text-2xl font-bold mb-4">Beranda</h2>
-                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                        <p>Selamat datang di Sistem Absensi Pesantren</p>
+                    <!-- Greeting -->
+                    <div class="mb-6">
+                        <h2 class="text-2xl font-bold" x-text="'Assalamu\'alaikum, ' + (user?.nama || 'Admin')"></h2>
+                        <p class="text-gray-500 dark:text-gray-400 text-sm" x-text="new Date().toLocaleDateString('id-ID', {weekday:'long', year:'numeric', month:'long', day:'numeric'})"></p>
+                    </div>
+
+                    <!-- Stats Cards -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 border-l-4 border-blue-500">
+                            <div class="text-2xl font-bold text-blue-600" x-text="dashboardData.total_santri || 0"></div>
+                            <div class="text-sm text-gray-500 dark:text-gray-400">👥 Total Santri</div>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 border-l-4 border-green-500">
+                            <div class="text-2xl font-bold text-green-600" x-text="dashboardData.hadir_hari_ini || 0"></div>
+                            <div class="text-sm text-gray-500 dark:text-gray-400">✅ Hadir Hari Ini</div>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 border-l-4 border-yellow-500">
+                            <div class="text-2xl font-bold text-yellow-600" x-text="dashboardData.izin_sakit || 0"></div>
+                            <div class="text-sm text-gray-500 dark:text-gray-400">📝 Izin/Sakit</div>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 border-l-4 border-red-500">
+                            <div class="text-2xl font-bold text-red-600" x-text="dashboardData.alfa || 0"></div>
+                            <div class="text-sm text-gray-500 dark:text-gray-400">❌ Alfa</div>
+                        </div>
+                    </div>
+
+                    <!-- Menu Grid -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                        <div class="text-xs font-semibold text-gray-500 dark:text-gray-400 col-span-2 md:col-span-4 mt-2">📋 Operasional Harian</div>
+                        <button @click="page='absensi'" x-show="['admin','ustadz'].includes(role)" class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 text-center hover:shadow-lg transition cursor-pointer">
+                            <div class="text-2xl mb-1">✅</div>
+                            <div class="text-sm font-medium">Absensi</div>
+                        </button>
+                        <button @click="page='absen-malam'" x-show="['admin','ustadz'].includes(role)" class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 text-center hover:shadow-lg transition cursor-pointer">
+                            <div class="text-2xl mb-1">🌙</div>
+                            <div class="text-sm font-medium">Absen Malam</div>
+                        </button>
+                        <button @click="page='absen-sekolah'" x-show="['admin','ustadz'].includes(role)" class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 text-center hover:shadow-lg transition cursor-pointer">
+                            <div class="text-2xl mb-1">🏫</div>
+                            <div class="text-sm font-medium">Absen Sekolah</div>
+                        </button>
+                        <button @click="page='catatan'" x-show="['admin','ustadz'].includes(role)" class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 text-center hover:shadow-lg transition cursor-pointer">
+                            <div class="text-2xl mb-1">📝</div>
+                            <div class="text-sm font-medium">Catatan Guru</div>
+                        </button>
+
+                        <div class="text-xs font-semibold text-gray-500 dark:text-gray-400 col-span-2 md:col-span-4 mt-2">📁 Data Master</div>
+                        <button @click="page='santri'" class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 text-center hover:shadow-lg transition cursor-pointer">
+                            <div class="text-2xl mb-1">👨‍🎓</div>
+                            <div class="text-sm font-medium">Data Santri</div>
+                        </button>
+                        <button @click="page='kamar'" x-show="['admin','ustadz'].includes(role)" class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 text-center hover:shadow-lg transition cursor-pointer">
+                            <div class="text-2xl mb-1">🏠</div>
+                            <div class="text-sm font-medium">Kelola Kamar</div>
+                        </button>
+                        <button @click="page='kegiatan'" x-show="['admin','ustadz'].includes(role)" class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 text-center hover:shadow-lg transition cursor-pointer">
+                            <div class="text-2xl mb-1">📚</div>
+                            <div class="text-sm font-medium">Kegiatan</div>
+                        </button>
+                        <button @click="page='users'" x-show="role==='admin'" class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 text-center hover:shadow-lg transition cursor-pointer">
+                            <div class="text-2xl mb-1">👥</div>
+                            <div class="text-sm font-medium">Pengguna</div>
+                        </button>
+
+                        <div class="text-xs font-semibold text-gray-500 dark:text-gray-400 col-span-2 md:col-span-4 mt-2">📊 Laporan & Rekap</div>
+                        <button @click="page='rekap'" x-show="['admin','ustadz'].includes(role)" class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 text-center hover:shadow-lg transition cursor-pointer">
+                            <div class="text-2xl mb-1">📋</div>
+                            <div class="text-sm font-medium">Rekap Absensi</div>
+                        </button>
+                        <button @click="page='raport'" x-show="['admin','ustadz'].includes(role)" class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 text-center hover:shadow-lg transition cursor-pointer">
+                            <div class="text-2xl mb-1">📜</div>
+                            <div class="text-sm font-medium">Raport Santri</div>
+                        </button>
+                        <button @click="page='rekap-ustadz'" x-show="['admin','ustadz'].includes(role)" class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 text-center hover:shadow-lg transition cursor-pointer">
+                            <div class="text-2xl mb-1">👨‍🏫</div>
+                            <div class="text-sm font-medium">Rekap Ustadz</div>
+                        </button>
+                        <button @click="page='laporan'" x-show="['admin','ustadz'].includes(role)" class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 text-center hover:shadow-lg transition cursor-pointer">
+                            <div class="text-2xl mb-1">📈</div>
+                            <div class="text-sm font-medium">Laporan</div>
+                        </button>
+
+                        <div class="text-xs font-semibold text-gray-500 dark:text-gray-400 col-span-2 md:col-span-4 mt-2">📌 Lainnya</div>
+                        <button @click="page='pelanggaran'" x-show="['admin','ustadz'].includes(role)" class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 text-center hover:shadow-lg transition cursor-pointer">
+                            <div class="text-2xl mb-1">⚠️</div>
+                            <div class="text-sm font-medium">Input Pelanggaran</div>
+                        </button>
+                        <button @click="page='pengumuman'" x-show="['admin','ustadz'].includes(role)" class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 text-center hover:shadow-lg transition cursor-pointer">
+                            <div class="text-2xl mb-1">📢</div>
+                            <div class="text-sm font-medium">Pengumuman</div>
+                        </button>
+                        <button @click="page='sensus'" x-show="['admin','ustadz'].includes(role)" class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 text-center hover:shadow-lg transition cursor-pointer">
+                            <div class="text-2xl mb-1">📊</div>
+                            <div class="text-sm font-medium">Sensus</div>
+                        </button>
+                        <button @click="page='settings'" x-show="role==='admin'" class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 text-center hover:shadow-lg transition cursor-pointer">
+                            <div class="text-2xl mb-1">⚙️</div>
+                            <div class="text-sm font-medium">Pengaturan</div>
+                        </button>
+                    </div>
+
+                    <!-- Alfa List (jika ada) -->
+                    <div x-show="dashboardData.alfa_list && dashboardData.alfa_list.length > 0" class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 mb-4">
+                        <h3 class="font-bold text-red-600 mb-2">❌ Daftar Alfa Hari Ini</h3>
+                        <template x-for="a in dashboardData.alfa_list" :key="a.id">
+                            <div class="text-sm py-1 border-b dark:border-gray-700" x-text="a.nama + ' - ' + (a.kamar_nama || '-')"></div>
+                        </template>
+                    </div>
+
+                    <!-- Pengumuman -->
+                    <div x-show="dashboardData.pengumuman && dashboardData.pengumuman.length > 0" class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+                        <h3 class="font-bold text-blue-600 mb-2">📢 Pengumuman</h3>
+                        <template x-for="p in (Array.isArray(dashboardData.pengumuman) ? dashboardData.pengumuman : [])" :key="p.id">
+                            <div class="text-sm py-2 border-b dark:border-gray-700">
+                                <div class="font-medium" x-text="p.judul"></div>
+                                <div class="text-gray-500" x-text="p.isi"></div>
+                            </div>
+                        </template>
                     </div>
                 </div>
                 <div class="page" x-show="page === 'absensi'">
