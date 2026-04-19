@@ -1,0 +1,7 @@
+node_modules/
+data.json
+*.log
+.build/
+temp-*
+build_faonsi.py
+.r2-config
