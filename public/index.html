@@ -32,6 +32,7 @@
     searchResults: [],
     searchLoading: false,
     token: localStorage.getItem('token'),
+    darkMode: localStorage.getItem('darkMode') !== 'false',
     user: null,
     role: '',
     dashboardData: { total_santri: 0, total_kamar: 0, hadir_hari_ini: 0, izin_sakit: 0, alfa: 0, alfa_list: [], pengumuman: [] },
@@ -97,6 +98,9 @@
                     <h1 class="text-xl font-bold">Sistem Absensi Pesantren</h1>
                 </div>
                 <div class="flex items-center space-x-3">
+                    <button @click="darkMode = !darkMode; document.documentElement.classList.toggle('dark', darkMode); localStorage.setItem('darkMode', darkMode)" class="text-white focus:outline-none hover:bg-teal-700 rounded-lg p-1.5 transition" title="Toggle Dark Mode">
+                        <span x-text="darkMode ? '☀️' : '🌙'" class="text-lg"></span>
+                    </button>
                     <button @click="searchOpen = !searchOpen" class="text-white focus:outline-none hover:bg-teal-700 rounded-lg p-1.5 transition">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
@@ -350,11 +354,11 @@
                             <div class="text-2xl mb-1">✅</div>
                             <div class="text-sm font-medium">Absensi</div>
                         </button>
-                        <button @click="page='absen-malam'" x-show="['admin','ustadz'].includes(role)" class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 text-center hover:shadow-lg transition cursor-pointer">
+                        <button @click="page='absenmalam'" x-show="['admin','ustadz'].includes(role)" class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 text-center hover:shadow-lg transition cursor-pointer">
                             <div class="text-2xl mb-1">🌙</div>
                             <div class="text-sm font-medium">Absen Malam</div>
                         </button>
-                        <button @click="page='absen-sekolah'" x-show="['admin','ustadz'].includes(role)" class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 text-center hover:shadow-lg transition cursor-pointer">
+                        <button @click="page='absensekolah'" x-show="['admin','ustadz'].includes(role)" class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 text-center hover:shadow-lg transition cursor-pointer">
                             <div class="text-2xl mb-1">🏫</div>
                             <div class="text-sm font-medium">Absen Sekolah</div>
                         </button>
@@ -394,7 +398,7 @@
                             <div class="text-2xl mb-1">👨‍🏫</div>
                             <div class="text-sm font-medium">Rekap Ustadz</div>
                         </button>
-                        <button @click="page='laporan'" x-show="['admin','ustadz'].includes(role)" class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 text-center hover:shadow-lg transition cursor-pointer">
+                        <button @click="page='rekap'" x-show="['admin','ustadz'].includes(role)" class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 text-center hover:shadow-lg transition cursor-pointer">
                             <div class="text-2xl mb-1">📈</div>
                             <div class="text-sm font-medium">Laporan</div>
                         </button>
@@ -412,7 +416,7 @@
                             <div class="text-2xl mb-1">📊</div>
                             <div class="text-sm font-medium">Sensus</div>
                         </button>
-                        <button @click="page='settings'" x-show="role==='admin'" class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 text-center hover:shadow-lg transition cursor-pointer">
+                        <button @click="page='pengaturan'" x-show="role==='admin'" class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 text-center hover:shadow-lg transition cursor-pointer">
                             <div class="text-2xl mb-1">⚙️</div>
                             <div class="text-sm font-medium">Pengaturan</div>
                         </button>
@@ -437,22 +441,137 @@
                         </template>
                     </div>
                 </div>
-                <div class="page" x-show="page === 'absensi'">
-                    <h2 class="text-2xl font-bold mb-4">Absensi</h2>
-                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                        <p>Halaman Absensi</p>
+                <div class="page" x-show="page === 'absensi'" x-data="{
+                    kegiatanList: [],
+                    santriList: [],
+                    selectedKegiatan: '',
+                    tanggal: new Date().toISOString().slice(0,10),
+                    absensi: {},
+                    loadKegiatan() {
+                        fetch('/api/kegiatan', {headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).then(d=>{this.kegiatanList=d;});
+                    },
+                    loadSantri() {
+                        fetch('/api/santri', {headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).then(d=>{
+                            this.santriList=d;
+                            d.forEach(s=>{ this.absensi[s.id]='hadir'; });
+                        });
+                    },
+                    save() {
+                        const data = Object.entries(this.absensi).map(([sid,status])=>({santri_id:+sid, kegiatan_id:+this.selectedKegiatan, tanggal:this.tanggal, status}));
+                        fetch('/api/absensi',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({absensi:data})})
+                        .then(r=>r.json()).then(()=>alert('Tersimpan!'));
+                    },
+                    init(){ this.loadKegiatan(); this.loadSantri(); }
+                }">
+                    <h2 class=\"text-2xl font-bold mb-4\">Absensi</h2>
+                    <div class=\"bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-4\">
+                        <div class=\"grid grid-cols-1 md:grid-cols-3 gap-3\">
+                            <div><label class=\"block text-sm mb-1\">Tanggal</label><input type=\"date\" x-model=\"tanggal\" class=\"w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600\"></div>
+                            <div><label class=\"block text-sm mb-1\">Kegiatan</label>
+                                <select x-model=\"selectedKegiatan\" class=\"w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600\">
+                                    <option value=\"\">-- Pilih Kegiatan --</option>
+                                    <template x-for=\"k in kegiatanList\" :key=\"k.id\"><option :value=\"k.id\" x-text=\"k.nama\"></option></template>
+                                </select>
+                            </div>
+                            <div class=\"flex items-end\"><button @click=\"save()\" class=\"bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg w-full\">Simpan Absensi</button></div>
+                        </div>
+                    </div>
+                    <div class=\"bg-white dark:bg-gray-800 rounded-lg shadow overflow-x-auto\">
+                        <table class=\"w-full text-sm\">
+                            <thead class=\"bg-gray-50 dark:bg-gray-700\"><tr><th class=\"px-3 py-2 text-left\">No</th><th class=\"px-3 py-2 text-left\">Nama</th><th class=\"px-3 py-2 text-left\">Kamar</th><th class=\"px-3 py-2 text-left\">Status</th></tr></thead>
+                            <tbody>
+                                <template x-for=\"(s,i) in santriList\" :key=\"s.id\">
+                                    <tr class=\"border-t dark:border-gray-700\">
+                                        <td class=\"px-3 py-2\" x-text=\"i+1\"></td>
+                                        <td class=\"px-3 py-2\" x-text=\"s.nama\"></td>
+                                        <td class=\"px-3 py-2\" x-text=\"s.kamar_nama||'-'\"></td>
+                                        <td class=\"px-3 py-2\">
+                                            <select x-model=\"absensi[s.id]\" class=\"px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 text-sm\">
+                                                <option value=\"hadir\">✅ Hadir</option>
+                                                <option value=\"izin\">📝 Izin</option>
+                                                <option value=\"sakit\">🤒 Sakit</option>
+                                                <option value=\"alfa\">❌ Alfa</option>
+                                            </select>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- Mobile cards -->
+                    <div class=\"md:hidden space-y-2 mt-2\">
+                        <template x-for=\"(s,i) in santriList\" :key=\"'m'+s.id\">
+                            <div class=\"bg-white dark:bg-gray-800 rounded-lg shadow p-3 flex justify-between items-center\">
+                                <div><div class=\"font-medium\" x-text=\"s.nama\"></div><div class=\"text-xs text-gray-500\" x-text=\"s.kamar_nama||'-'\"></div></div>
+                                <select x-model=\"absensi[s.id]\" class=\"px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 text-sm\">
+                                    <option value=\"hadir\">✅</option><option value=\"izin\">📝</option><option value=\"sakit\">🤒</option><option value=\"alfa\">❌</option>
+                                </select>
+                            </div>
+                        </template>
                     </div>
                 </div>
-                <div class="page" x-show="page === 'absenmalam'">
-                    <h2 class="text-2xl font-bold mb-4">Absen Malam</h2>
-                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                        <p>Halaman Absen Malam</p>
+                <div class=\"page\" x-show=\"page === 'absenmalam'\" x-data=\"{
+                    santriList: [],
+                    absensi: {},
+                    tanggal: new Date().toISOString().slice(0,10),
+                    load() {
+                        fetch('/api/santri',{headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).then(d=>{this.santriList=d;d.forEach(s=>{this.absensi[s.id]='hadir';});});
+                    },
+                    save() {
+                        const data=Object.entries(this.absensi).map(([sid,st])=>({santri_id:+sid,tanggal:this.tanggal,status:st}));
+                        fetch('/api/absen-malam',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({absensi:data})})
+                        .then(r=>r.json()).then(()=>alert('Tersimpan!'));
+                    },
+                    init(){this.load();}
+                }">
+                    <h2 class=\"text-2xl font-bold mb-4\">Absen Malam</h2>
+                    <div class=\"bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-4\">
+                        <div class=\"grid grid-cols-1 md:grid-cols-2 gap-3\">
+                            <div><label class=\"block text-sm mb-1\">Tanggal</label><input type=\"date\" x-model=\"tanggal\" class=\"w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600\"></div>
+                            <div class=\"flex items-end\"><button @click=\"save()\" class=\"bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg w-full\">Simpan</button></div>
+                        </div>
+                    </div>
+                    <div class=\"space-y-2\">
+                        <template x-for=\"(s,i) in santriList\" :key=\"s.id\">
+                            <div class=\"bg-white dark:bg-gray-800 rounded-lg shadow p-3 flex justify-between items-center\">
+                                <div><span class=\"font-medium\" x-text=\"(i+1)+'. '+s.nama\"></span><span class=\"text-xs text-gray-500 ml-2\" x-text=\"s.kamar_nama||''\"></span></div>
+                                <select x-model=\"absensi[s.id]\" class=\"px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 text-sm\">
+                                    <option value=\"hadir\">✅ Hadir</option><option value=\"izin\">📝 Izin</option><option value=\"sakit\">🤒 Sakit</option><option value=\"alfa\">❌ Alfa</option>
+                                </select>
+                            </div>
+                        </template>
                     </div>
                 </div>
-                <div class="page" x-show="page === 'absensekolah'">
-                    <h2 class="text-2xl font-bold mb-4">Absen Sekolah</h2>
-                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                        <p>Halaman Absen Sekolah</p>
+                <div class=\"page\" x-show=\"page === 'absensekolah'\" x-data=\"{
+                    santriList: [],
+                    absensi: {},
+                    tanggal: new Date().toISOString().slice(0,10),
+                    load() {
+                        fetch('/api/santri',{headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).then(d=>{this.santriList=d;d.forEach(s=>{this.absensi[s.id]='hadir';});});
+                    },
+                    save() {
+                        const data=Object.entries(this.absensi).map(([sid,st])=>({santri_id:+sid,tanggal:this.tanggal,status:st}));
+                        fetch('/api/absen-sekolah',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({absensi:data})})
+                        .then(r=>r.json()).then(()=>alert('Tersimpan!'));
+                    },
+                    init(){this.load();}
+                }">
+                    <h2 class=\"text-2xl font-bold mb-4\">Absen Sekolah</h2>
+                    <div class=\"bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-4\">
+                        <div class=\"grid grid-cols-1 md:grid-cols-2 gap-3\">
+                            <div><label class=\"block text-sm mb-1\">Tanggal</label><input type=\"date\" x-model=\"tanggal\" class=\"w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600\"></div>
+                            <div class=\"flex items-end\"><button @click=\"save()\" class=\"bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg w-full\">Simpan</button></div>
+                        </div>
+                    </div>
+                    <div class=\"space-y-2\">
+                        <template x-for=\"(s,i) in santriList\" :key=\"s.id\">
+                            <div class=\"bg-white dark:bg-gray-800 rounded-lg shadow p-3 flex justify-between items-center\">
+                                <div><span class=\"font-medium\" x-text=\"(i+1)+'. '+s.nama\"></span><span class=\"text-xs text-gray-500 ml-2\" x-text=\"s.kamar_nama||''\"></span></div>
+                                <select x-model=\"absensi[s.id]\" class=\"px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 text-sm\">
+                                    <option value=\"hadir\">✅ Hadir</option><option value=\"izin\">📝 Izin</option><option value=\"sakit\">🤒 Sakit</option><option value=\"alfa\">❌ Alfa</option>
+                                </select>
+                            </div>
+                        </template>
                     </div>
                 </div>
                 <div class="page" x-show="page === 'santri'" x-data="{
@@ -764,71 +883,223 @@
                         </div>
                     </div>
                 </div>
-                <div class="page" x-show="page === 'rekap'">
+                <div class="page" x-show="page === 'rekap'" x-data="{
+                    list: [],
+                    tanggal: new Date().toISOString().slice(0,10),
+                    load() {
+                        fetch('/api/rekap?tanggal='+this.tanggal,{headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).then(d=>{this.list=Array.isArray(d)?d:[];});
+                    },
+                    init(){this.load();}
+                }">
                     <h2 class="text-2xl font-bold mb-4">Rekap Absensi</h2>
-                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                        <p>Halaman Rekap Absensi</p>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-4">
+                        <div class="flex gap-3 items-end">
+                            <div class="flex-1"><label class="block text-sm mb-1">Tanggal</label><input type="date" x-model="tanggal" @change="load()" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"></div>
+                        </div>
+                    </div>
+                    <div class="space-y-2">
+                        <template x-for="(r,i) in list" :key="i">
+                            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-3 flex justify-between items-center">
+                                <div><span class="font-medium" x-text="r.nama||r.santri_nama||'-'"></span><span class="text-xs text-gray-500 ml-2" x-text="r.kamar_nama||''"></span></div>
+                                <span class="px-2 py-1 rounded text-xs font-medium" :class="r.status==='hadir'?'bg-green-100 text-green-700':r.status==='izin'?'bg-yellow-100 text-yellow-700':r.status==='sakit'?'bg-blue-100 text-blue-700':'bg-red-100 text-red-700'" x-text="r.status"></span>
+                            </div>
+                        </template>
+                        <div x-show="list.length===0" class="text-center text-gray-400 py-4">Tidak ada data</div>
                     </div>
                 </div>
-                <div class="page" x-show="page === 'pengumuman'">
-                    <h2 class="text-2xl font-bold mb-4">Pengumuman</h2>
-                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                        <p>Halaman Pengumuman</p>
+                <div class="page" x-show="page === 'pengumuman'" x-data="{
+                    list: [],
+                    showModal: false,
+                    editId: null,
+                    form: { judul:'', isi:'' },
+                    load() { fetch('/api/pengumuman',{headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).then(d=>{this.list=Array.isArray(d)?d:[];}); },
+                    openAdd() { this.editId=null; this.form={judul:'',isi:''}; this.showModal=true; },
+                    openEdit(p) { this.editId=p.id; this.form={judul:p.judul||'',isi:p.isi||''}; this.showModal=true; },
+                    save() {
+                        const url=this.editId?'/api/pengumuman/'+this.editId:'/api/pengumuman';
+                        fetch(url,{method:this.editId?'PUT':'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(this.form)})
+                        .then(r=>r.json()).then(()=>{this.showModal=false;this.load();});
+                    },
+                    del(id) { if(!confirm('Hapus?'))return; fetch('/api/pengumuman/'+id,{method:'DELETE',headers:{'Authorization':'Bearer '+token}}).then(()=>this.load()); },
+                    init(){this.load();}
+                }">
+                    <div class="flex justify-between items-center mb-4"><h2 class="text-2xl font-bold">Pengumuman</h2><button @click="openAdd()" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg">+ Tambah</button></div>
+                    <div class="space-y-2">
+                        <template x-for="p in list" :key="p.id">
+                            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+                                <div class="flex justify-between"><h3 class="font-bold" x-text="p.judul"></h3><div><button @click="openEdit(p)" class="text-blue-500 mr-2">✏️</button><button @click="del(p.id)" class="text-red-500">🗑️</button></div></div>
+                                <p class="text-sm text-gray-600 dark:text-gray-400 mt-1" x-text="p.isi"></p>
+                            </div>
+                        </template>
+                        <div x-show="list.length===0" class="text-center text-gray-400 py-4">Tidak ada pengumuman</div>
+                    </div>
+                    <div x-show="showModal" x-cloak class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" @click.self="showModal=false">
+                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6">
+                            <h3 class="text-lg font-bold mb-4" x-text="editId?'Edit':'Tambah'"></h3>
+                            <div class="space-y-3">
+                                <div><label class="block text-sm mb-1">Judul</label><input type="text" x-model="form.judul" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"></div>
+                                <div><label class="block text-sm mb-1">Isi</label><textarea x-model="form.isi" rows="4" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"></textarea></div>
+                            </div>
+                            <div class="flex justify-end gap-2 mt-4"><button @click="showModal=false" class="px-4 py-2 border rounded-lg dark:border-gray-600">Batal</button><button @click="save()" class="px-4 py-2 bg-teal-600 text-white rounded-lg">Simpan</button></div>
+                        </div>
                     </div>
                 </div>
-                <div class="page" x-show="page === 'pelanggaran'">
-                    <h2 class="text-2xl font-bold mb-4">Pelanggaran</h2>
-                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                        <p>Halaman Pelanggaran</p>
+                <div class="page" x-show="page === 'pelanggaran'" x-data="{
+                    santriList: [],
+                    list: [],
+                    showModal: false,
+                    form: { santri_id:'', jenis:'', keterangan:'', tanggal: new Date().toISOString().slice(0,10) },
+                    load() {
+                        fetch('/api/santri',{headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).then(d=>{this.santriList=d;});
+                        fetch('/api/pelanggaran',{headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).then(d=>{this.list=Array.isArray(d)?d:[];});
+                    },
+                    openAdd() { this.form={santri_id:'',jenis:'',keterangan:'',tanggal:new Date().toISOString().slice(0,10)}; this.showModal=true; },
+                    save() {
+                        fetch('/api/pelanggaran',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(this.form)})
+                        .then(r=>r.json()).then(()=>{this.showModal=false;this.load();});
+                    },
+                    init(){this.load();}
+                }">
+                    <div class="flex justify-between items-center mb-4"><h2 class="text-2xl font-bold">Pelanggaran</h2><button @click="openAdd()" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg">+ Input</button></div>
+                    <div class="space-y-2">
+                        <template x-for="p in list" :key="p.id">
+                            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-3">
+                                <div class="flex justify-between"><span class="font-medium" x-text="p.santri_nama||'-'"></span><span class="text-xs text-gray-500" x-text="p.tanggal"></span></div>
+                                <div class="text-sm text-red-600" x-text="p.jenis"></div>
+                                <div class="text-xs text-gray-500" x-text="p.keterangan"></div>
+                            </div>
+                        </template>
+                        <div x-show="list.length===0" class="text-center text-gray-400 py-4">Tidak ada data</div>
+                    </div>
+                    <div x-show="showModal" x-cloak class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" @click.self="showModal=false">
+                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6">
+                            <h3 class="text-lg font-bold mb-4">Input Pelanggaran</h3>
+                            <div class="space-y-3">
+                                <div><label class="block text-sm mb-1">Santri</label><select x-model="form.santri_id" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"><option value="">-- Pilih --</option><template x-for="s in santriList" :key="s.id"><option :value="s.id" x-text="s.nama"></option></template></select></div>
+                                <div><label class="block text-sm mb-1">Jenis</label><input type="text" x-model="form.jenis" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"></div>
+                                <div><label class="block text-sm mb-1">Keterangan</label><textarea x-model="form.keterangan" rows="2" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"></textarea></div>
+                                <div><label class="block text-sm mb-1">Tanggal</label><input type="date" x-model="form.tanggal" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"></div>
+                            </div>
+                            <div class="flex justify-end gap-2 mt-4"><button @click="showModal=false" class="px-4 py-2 border rounded-lg dark:border-gray-600">Batal</button><button @click="save()" class="px-4 py-2 bg-teal-600 text-white rounded-lg">Simpan</button></div>
+                        </div>
                     </div>
                 </div>
-                <div class="page" x-show="page === 'catatan'">
-                    <h2 class="text-2xl font-bold mb-4">Catatan Guru</h2>
-                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                        <p>Halaman Catatan Guru</p>
+                <div class="page" x-show="page === 'catatan'" x-data="{
+                    santriList: [],
+                    list: [],
+                    showModal: false,
+                    form: { santri_id:'', catatan:'', tanggal: new Date().toISOString().slice(0,10) },
+                    load() {
+                        fetch('/api/santri',{headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).then(d=>{this.santriList=d;});
+                        fetch('/api/catatan-guru',{headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).then(d=>{this.list=Array.isArray(d)?d:[];});
+                    },
+                    openAdd() { this.form={santri_id:'',catatan:'',tanggal:new Date().toISOString().slice(0,10)}; this.showModal=true; },
+                    save() {
+                        fetch('/api/catatan-guru',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(this.form)})
+                        .then(r=>r.json()).then(()=>{this.showModal=false;this.load();});
+                    },
+                    init(){this.load();}
+                }">
+                    <div class="flex justify-between items-center mb-4"><h2 class="text-2xl font-bold">Catatan Guru</h2><button @click="openAdd()" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg">+ Tambah</button></div>
+                    <div class="space-y-2">
+                        <template x-for="c in list" :key="c.id">
+                            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-3">
+                                <div class="flex justify-between"><span class="font-medium" x-text="c.santri_nama||'-'"></span><span class="text-xs text-gray-500" x-text="c.tanggal"></span></div>
+                                <div class="text-sm mt-1" x-text="c.catatan"></div>
+                            </div>
+                        </template>
+                        <div x-show="list.length===0" class="text-center text-gray-400 py-4">Tidak ada catatan</div>
+                    </div>
+                    <div x-show="showModal" x-cloak class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" @click.self="showModal=false">
+                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6">
+                            <h3 class="text-lg font-bold mb-4">Tambah Catatan</h3>
+                            <div class="space-y-3">
+                                <div><label class="block text-sm mb-1">Santri</label><select x-model="form.santri_id" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"><option value="">-- Pilih --</option><template x-for="s in santriList" :key="s.id"><option :value="s.id" x-text="s.nama"></option></template></select></div>
+                                <div><label class="block text-sm mb-1">Catatan</label><textarea x-model="form.catatan" rows="3" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"></textarea></div>
+                                <div><label class="block text-sm mb-1">Tanggal</label><input type="date" x-model="form.tanggal" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"></div>
+                            </div>
+                            <div class="flex justify-end gap-2 mt-4"><button @click="showModal=false" class="px-4 py-2 border rounded-lg dark:border-gray-600">Batal</button><button @click="save()" class="px-4 py-2 bg-teal-600 text-white rounded-lg">Simpan</button></div>
+                        </div>
                     </div>
                 </div>
-                <div class="page" x-show="page === 'raport'">
-                    <h2 class="text-2xl font-bold mb-4">Raport</h2>
-                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                        <p>Halaman Raport</p>
+                <div class="page" x-show="page === 'raport'" x-data="{
+                    santriList: [],
+                    selectedSantri: '',
+                    raport: null,
+                    load() { fetch('/api/santri',{headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).then(d=>{this.santriList=d;}); },
+                    loadRaport() {
+                        if(!this.selectedSantri) return;
+                        fetch('/api/raport/'+this.selectedSantri,{headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).then(d=>{this.raport=d;});
+                    },
+                    init(){this.load();}
+                }">
+                    <h2 class="text-2xl font-bold mb-4">Raport Santri</h2>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-4">
+                        <label class="block text-sm mb-1">Pilih Santri</label>
+                        <select x-model="selectedSantri" @change="loadRaport()" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600">
+                            <option value="">-- Pilih --</option>
+                            <template x-for="s in santriList" :key="s.id"><option :value="s.id" x-text="s.nama"></option></template>
+                        </select>
+                    </div>
+                    <div x-show="raport" class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+                        <p class="text-gray-500">Raport akan muncul di sini setelah dipilih santri.</p>
                     </div>
                 </div>
-                <div class="page" x-show="page === 'sensus'">
-                    <h2 class="text-2xl font-bold mb-4">Sensus</h2>
-                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                        <p>Halaman Sensus</p>
+                <div class="page" x-show="page === 'sensus'" x-data="{
+                    data: null,
+                    load() {
+                        fetch('/api/sensus',{headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).then(d=>{this.data=d;});
+                    },
+                    init(){this.load();}
+                }">
+                    <h2 class="text-2xl font-bold mb-4">Sensus Santri</h2>
+                    <div x-show="data" class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+                        <p class="text-gray-500">Data sensus akan muncul di sini.</p>
                     </div>
                 </div>
-                <div class="page" x-show="page === 'rekap-ustadz'">
+                <div class="page" x-show="page === 'rekap-ustadz'" x-data="{
+                    list: [],
+                    load() { fetch('/api/rekap-ustadz',{headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).then(d=>{this.list=Array.isArray(d)?d:[];}); },
+                    init(){this.load();}
+                }">
                     <h2 class="text-2xl font-bold mb-4">Rekap Ustadz</h2>
-                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                        <p>Halaman Rekap Ustadz</p>
+                    <div class="space-y-2">
+                        <template x-for="r in list" :key="r.id||r.nama">
+                            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-3">
+                                <span class="font-medium" x-text="r.nama||r.ustadz_nama||'-'"></span>
+                                <span class="text-sm text-gray-500 ml-2" x-text="r.total ? 'Total: '+r.total : ''"></span>
+                            </div>
+                        </template>
+                        <div x-show="list.length===0" class="text-center text-gray-400 py-4">Tidak ada data</div>
                     </div>
                 </div>
-                <div class="page" x-show="page === 'pengaturan'">
+                <div class="page" x-show="page === 'pengaturan'" x-data="{
+                    settings: {},
+                    kepala_nama: '',
+                    load() { fetch('/api/settings',{headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).then(d=>{this.settings=d;this.kepala_nama=d.kepala_nama||'';}); },
+                    save() {
+                        fetch('/api/settings',{method:'PUT',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({kepala_nama:this.kepala_nama})})
+                        .then(r=>r.json()).then(()=>alert('Tersimpan!'));
+                    },
+                    init(){this.load();}
+                }">
                     <h2 class="text-2xl font-bold mb-4">Pengaturan</h2>
-                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                        <p>Halaman Pengaturan</p>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4 max-w-md">
+                        <div><label class="block text-sm mb-1">Nama Kepala Pesantren</label><input type="text" x-model="kepala_nama" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"></div>
+                        <button @click="save()" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg">Simpan</button>
                     </div>
                 </div>
                 <div class="page" x-show="page === 'walidashboard'">
                     <h2 class="text-2xl font-bold mb-4">Dashboard Wali</h2>
-                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                        <p>Halaman Dashboard Wali</p>
-                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6"><p>Dashboard khusus wali santri.</p></div>
                 </div>
                 <div class="page" x-show="page === 'walirekap'">
                     <h2 class="text-2xl font-bold mb-4">Rekap Anak</h2>
-                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                        <p>Halaman Rekap Anak</p>
-                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6"><p>Rekap absensi anak.</p></div>
                 </div>
                 <div class="page" x-show="page === 'walicatatan'">
                     <h2 class="text-2xl font-bold mb-4">Catatan Anak</h2>
-                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                        <p>Halaman Catatan Anak</p>
-                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6"><p>Catatan guru untuk anak.</p></div>
                 </div>
             </main>
         </div>
