@@ -463,34 +463,34 @@
                     },
                     init(){ this.loadKegiatan(); this.loadSantri(); }
                 }">
-                    <h2 class=\"text-2xl font-bold mb-4\">Absensi</h2>
-                    <div class=\"bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-4\">
-                        <div class=\"grid grid-cols-1 md:grid-cols-3 gap-3\">
-                            <div><label class=\"block text-sm mb-1\">Tanggal</label><input type=\"date\" x-model=\"tanggal\" class=\"w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600\"></div>
-                            <div><label class=\"block text-sm mb-1\">Kegiatan</label>
-                                <select x-model=\"selectedKegiatan\" class=\"w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600\">
-                                    <option value=\"\">-- Pilih Kegiatan --</option>
-                                    <template x-for=\"k in kegiatanList\" :key=\"k.id\"><option :value=\"k.id\" x-text=\"k.nama\"></option></template>
+                    <h2 class="text-2xl font-bold mb-4">Absensi</h2>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-4">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div><label class="block text-sm mb-1">Tanggal</label><input type="date" x-model="tanggal" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"></div>
+                            <div><label class="block text-sm mb-1">Kegiatan</label>
+                                <select x-model="selectedKegiatan" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600">
+                                    <option value="">-- Pilih Kegiatan --</option>
+                                    <template x-for="k in kegiatanList" :key="k.id"><option :value="k.id" x-text="k.nama"></option></template>
                                 </select>
                             </div>
-                            <div class=\"flex items-end\"><button @click=\"save()\" class=\"bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg w-full\">Simpan Absensi</button></div>
+                            <div class="flex items-end"><button @click="save()" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg w-full">Simpan Absensi</button></div>
                         </div>
                     </div>
-                    <div class=\"bg-white dark:bg-gray-800 rounded-lg shadow overflow-x-auto\">
-                        <table class=\"w-full text-sm\">
-                            <thead class=\"bg-gray-50 dark:bg-gray-700\"><tr><th class=\"px-3 py-2 text-left\">No</th><th class=\"px-3 py-2 text-left\">Nama</th><th class=\"px-3 py-2 text-left\">Kamar</th><th class=\"px-3 py-2 text-left\">Status</th></tr></thead>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50 dark:bg-gray-700"><tr><th class="px-3 py-2 text-left">No</th><th class="px-3 py-2 text-left">Nama</th><th class="px-3 py-2 text-left">Kamar</th><th class="px-3 py-2 text-left">Status</th></tr></thead>
                             <tbody>
-                                <template x-for=\"(s,i) in santriList\" :key=\"s.id\">
-                                    <tr class=\"border-t dark:border-gray-700\">
-                                        <td class=\"px-3 py-2\" x-text=\"i+1\"></td>
-                                        <td class=\"px-3 py-2\" x-text=\"s.nama\"></td>
-                                        <td class=\"px-3 py-2\" x-text=\"s.kamar_nama||'-'\"></td>
-                                        <td class=\"px-3 py-2\">
-                                            <select x-model=\"absensi[s.id]\" class=\"px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 text-sm\">
-                                                <option value=\"hadir\">✅ Hadir</option>
-                                                <option value=\"izin\">📝 Izin</option>
-                                                <option value=\"sakit\">🤒 Sakit</option>
-                                                <option value=\"alfa\">❌ Alfa</option>
+                                <template x-for="(s,i) in santriList" :key="s.id">
+                                    <tr class="border-t dark:border-gray-700">
+                                        <td class="px-3 py-2" x-text="i+1"></td>
+                                        <td class="px-3 py-2" x-text="s.nama"></td>
+                                        <td class="px-3 py-2" x-text="s.kamar_nama||'-'"></td>
+                                        <td class="px-3 py-2">
+                                            <select x-model="absensi[s.id]" class="px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 text-sm">
+                                                <option value="hadir">✅ Hadir</option>
+                                                <option value="izin">📝 Izin</option>
+                                                <option value="sakit">🤒 Sakit</option>
+                                                <option value="alfa">❌ Alfa</option>
                                             </select>
                                         </td>
                                     </tr>
@@ -499,18 +499,18 @@
                         </table>
                     </div>
                     <!-- Mobile cards -->
-                    <div class=\"md:hidden space-y-2 mt-2\">
-                        <template x-for=\"(s,i) in santriList\" :key=\"'m'+s.id\">
-                            <div class=\"bg-white dark:bg-gray-800 rounded-lg shadow p-3 flex justify-between items-center\">
-                                <div><div class=\"font-medium\" x-text=\"s.nama\"></div><div class=\"text-xs text-gray-500\" x-text=\"s.kamar_nama||'-'\"></div></div>
-                                <select x-model=\"absensi[s.id]\" class=\"px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 text-sm\">
-                                    <option value=\"hadir\">✅</option><option value=\"izin\">📝</option><option value=\"sakit\">🤒</option><option value=\"alfa\">❌</option>
+                    <div class="md:hidden space-y-2 mt-2">
+                        <template x-for="(s,i) in santriList" :key="'m'+s.id">
+                            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-3 flex justify-between items-center">
+                                <div><div class="font-medium" x-text="s.nama"></div><div class="text-xs text-gray-500" x-text="s.kamar_nama||'-'"></div></div>
+                                <select x-model="absensi[s.id]" class="px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 text-sm">
+                                    <option value="hadir">✅</option><option value="izin">📝</option><option value="sakit">🤒</option><option value="alfa">❌</option>
                                 </select>
                             </div>
                         </template>
                     </div>
                 </div>
-                <div class=\"page\" x-show=\"page === 'absenmalam'\" x-data=\"{
+                <div class="page" x-show="page === 'absenmalam'" x-data="{
                     santriList: [],
                     absensi: {},
                     tanggal: new Date().toISOString().slice(0,10),
@@ -524,25 +524,25 @@
                     },
                     init(){this.load();}
                 }">
-                    <h2 class=\"text-2xl font-bold mb-4\">Absen Malam</h2>
-                    <div class=\"bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-4\">
-                        <div class=\"grid grid-cols-1 md:grid-cols-2 gap-3\">
-                            <div><label class=\"block text-sm mb-1\">Tanggal</label><input type=\"date\" x-model=\"tanggal\" class=\"w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600\"></div>
-                            <div class=\"flex items-end\"><button @click=\"save()\" class=\"bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg w-full\">Simpan</button></div>
+                    <h2 class="text-2xl font-bold mb-4">Absen Malam</h2>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div><label class="block text-sm mb-1">Tanggal</label><input type="date" x-model="tanggal" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"></div>
+                            <div class="flex items-end"><button @click="save()" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg w-full">Simpan</button></div>
                         </div>
                     </div>
-                    <div class=\"space-y-2\">
-                        <template x-for=\"(s,i) in santriList\" :key=\"s.id\">
-                            <div class=\"bg-white dark:bg-gray-800 rounded-lg shadow p-3 flex justify-between items-center\">
-                                <div><span class=\"font-medium\" x-text=\"(i+1)+'. '+s.nama\"></span><span class=\"text-xs text-gray-500 ml-2\" x-text=\"s.kamar_nama||''\"></span></div>
-                                <select x-model=\"absensi[s.id]\" class=\"px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 text-sm\">
-                                    <option value=\"hadir\">✅ Hadir</option><option value=\"izin\">📝 Izin</option><option value=\"sakit\">🤒 Sakit</option><option value=\"alfa\">❌ Alfa</option>
+                    <div class="space-y-2">
+                        <template x-for="(s,i) in santriList" :key="s.id">
+                            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-3 flex justify-between items-center">
+                                <div><span class="font-medium" x-text="(i+1)+'. '+s.nama"></span><span class="text-xs text-gray-500 ml-2" x-text="s.kamar_nama||''"></span></div>
+                                <select x-model="absensi[s.id]" class="px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 text-sm">
+                                    <option value="hadir">✅ Hadir</option><option value="izin">📝 Izin</option><option value="sakit">🤒 Sakit</option><option value="alfa">❌ Alfa</option>
                                 </select>
                             </div>
                         </template>
                     </div>
                 </div>
-                <div class=\"page\" x-show=\"page === 'absensekolah'\" x-data=\"{
+                <div class="page" x-show="page === 'absensekolah'" x-data="{
                     santriList: [],
                     absensi: {},
                     tanggal: new Date().toISOString().slice(0,10),
@@ -556,19 +556,19 @@
                     },
                     init(){this.load();}
                 }">
-                    <h2 class=\"text-2xl font-bold mb-4\">Absen Sekolah</h2>
-                    <div class=\"bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-4\">
-                        <div class=\"grid grid-cols-1 md:grid-cols-2 gap-3\">
-                            <div><label class=\"block text-sm mb-1\">Tanggal</label><input type=\"date\" x-model=\"tanggal\" class=\"w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600\"></div>
-                            <div class=\"flex items-end\"><button @click=\"save()\" class=\"bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg w-full\">Simpan</button></div>
+                    <h2 class="text-2xl font-bold mb-4">Absen Sekolah</h2>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div><label class="block text-sm mb-1">Tanggal</label><input type="date" x-model="tanggal" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"></div>
+                            <div class="flex items-end"><button @click="save()" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg w-full">Simpan</button></div>
                         </div>
                     </div>
-                    <div class=\"space-y-2\">
-                        <template x-for=\"(s,i) in santriList\" :key=\"s.id\">
-                            <div class=\"bg-white dark:bg-gray-800 rounded-lg shadow p-3 flex justify-between items-center\">
-                                <div><span class=\"font-medium\" x-text=\"(i+1)+'. '+s.nama\"></span><span class=\"text-xs text-gray-500 ml-2\" x-text=\"s.kamar_nama||''\"></span></div>
-                                <select x-model=\"absensi[s.id]\" class=\"px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 text-sm\">
-                                    <option value=\"hadir\">✅ Hadir</option><option value=\"izin\">📝 Izin</option><option value=\"sakit\">🤒 Sakit</option><option value=\"alfa\">❌ Alfa</option>
+                    <div class="space-y-2">
+                        <template x-for="(s,i) in santriList" :key="s.id">
+                            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-3 flex justify-between items-center">
+                                <div><span class="font-medium" x-text="(i+1)+'. '+s.nama"></span><span class="text-xs text-gray-500 ml-2" x-text="s.kamar_nama||''"></span></div>
+                                <select x-model="absensi[s.id]" class="px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 text-sm">
+                                    <option value="hadir">✅ Hadir</option><option value="izin">📝 Izin</option><option value="sakit">🤒 Sakit</option><option value="alfa">❌ Alfa</option>
                                 </select>
                             </div>
                         </template>
