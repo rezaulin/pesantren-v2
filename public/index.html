@@ -1357,7 +1357,10 @@ tr:hover{background:var(--bg)}
     <div class="page" id="page-santri">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem">
         <h3 class="section-title" style="margin:0">Data Santri</h3>
-        <button class="btn btn-primary btn-sm" onclick="showModal('santri')" id="btnTambahSantri">+ Tambah</button>
+        <div style="display:flex;gap:.5rem">
+          <button class="btn btn-outline btn-sm" onclick="showImportExcel()">📥 Import Excel</button>
+          <button class="btn btn-primary btn-sm" onclick="showModal('santri')" id="btnTambahSantri">+ Tambah</button>
+        </div>
       </div>
       <div class="table-wrap"><table id="santriTable"><thead><tr id="santriHead"><th>No</th><th>Nama</th><th>Kamar</th><th>Status</th><th>Aksi</th></tr></thead><tbody></tbody></table></div>
     </div>
@@ -3360,6 +3363,35 @@ async function showModal(type,editData){
   }
 }
 function closeModal(){$('modalBg').classList.remove('active')}
+
+// ── Import Excel ──
+function showImportExcel(){
+  let html='<h3>📥 Import Santri dari Excel</h3>';
+  html+='<p style="color:var(--text-muted);font-size:.85rem;margin:.5rem 0">Format: kolom <b>Nama</b>, <b>Alamat</b>, <b>Wali</b> (baris pertama = header)</p>';
+  html+='<div class="form-group"><label>File Excel (.xlsx)</label><input type="file" id="importFile" accept=".xlsx,.xls" style="padding:.5rem"></div>';
+  html+='<button class="btn btn-primary" onclick="doImportExcel()">📤 Upload & Import</button> <button class="btn btn-outline" onclick="closeModal()">Batal</button>';
+  $('modalContent').innerHTML=html;$('modalBg').classList.add('active');
+}
+
+async function doImportExcel(){
+  const fileInput=$('importFile');
+  if(!fileInput.files.length)return alert('Pilih file Excel dulu!');
+  const fd=new FormData();
+  fd.append('file',fileInput.files[0]);
+  const res=await fetch(API+'/api/santri/import-excel',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd});
+  const data=await res.json();
+  if(!res.ok)return alert(data.message||'Gagal import');
+  // Show results
+  let html='<h3>✅ '+data.message+'</h3>';
+  html+='<div class="table-wrap"><table><thead><tr><th>Nama Santri</th><th>Alamat</th><th>Wali</th><th>Username</th><th>Password</th></tr></thead><tbody>';
+  data.data.forEach(r=>{
+    html+='<tr><td>'+r.nama+'</td><td>'+r.alamat+'</td><td>'+r.wali+'</td><td><code>'+r.username+'</code></td><td><code>'+r.password+'</code></td></tr>';
+  });
+  html+='</tbody></table></div>';
+  html+='<p style="margin-top:.8rem;font-size:.8rem;color:var(--text-muted)">⚠️ Catat username & password di atas untuk diberikan ke wali santri.</p>';
+  html+='<button class="btn btn-primary" onclick="closeModal();loadSantri()">OK</button>';
+  $('modalContent').innerHTML=html;
+}
 
 async function saveSantri(id){
   const body={nama:$('mNama').value,kamar_id:parseInt($('mKamar').value),status:$('mStatus').value,wali_user_id:$('mWali').value||null,alamat:$('mAlamat')?.value||''};

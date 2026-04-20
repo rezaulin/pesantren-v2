@@ -346,6 +346,100 @@ app.delete('/api/santri/:id', authenticate, requireAdmin, (req, res) => {
   res.json({ message: 'Santri dihapus' });
 });
 
+// Import Santri from Excel
+app.post('/api/santri/import-excel', authenticate, requireAdmin, upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ message: 'File Excel wajib diupload' });
+  try {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(req.file.buffer);
+    const sheet = workbook.worksheets[0];
+    if (!sheet) return res.status(400).json({ message: 'Sheet kosong' });
+
+    // Read header row to find column indices
+    const headerRow = sheet.getRow(1);
+    let colNama = -1, colAlamat = -1, colWali = -1;
+    headerRow.eachCell((cell, colNum) => {
+      const h = String(cell.value || '').toLowerCase().trim();
+      if (h.includes('nama')) colNama = colNum;
+      else if (h.includes('alamat')) colAlamat = colNum;
+      else if (h.includes('wali')) colWali = colNum;
+    });
+    // Fallback: if no header found, assume A=nama, B=alamat, C=wali
+    if (colNama === -1) { colNama = 1; colAlamat = 2; colWali = 3; }
+
+    const results = [];
+    const usernameCount = {}; // track duplicate usernames
+
+    // Process each data row (skip header)
+    const startRow = (colNama === 1 && colAlamat === 2 && colWali === 3 && String(headerRow.getCell(1).value || '').toLowerCase().includes('nama')) ? 2 : (colNama === 1 ? 2 : 1);
+    
+    for (let rowNum = startRow; rowNum <= sheet.rowCount; rowNum++) {
+      const row = sheet.getRow(rowNum);
+      const namaSantri = String(row.getCell(colNama).value || '').trim();
+      const alamat = String(row.getCell(colAlamat).value || '').trim();
+      const namaWali = String(row.getCell(colWali).value || '').trim();
+
+      if (!namaSantri) continue; // skip empty rows
+
+      // Generate username from wali name
+      let baseUsername = 'wali_' + namaWali.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (!usernameCount[baseUsername]) usernameCount[baseUsername] = 0;
+      usernameCount[baseUsername]++;
+      let username = usernameCount[baseUsername] === 1 ? baseUsername : baseUsername + '_' + usernameCount[baseUsername];
+
+      // Ensure uniqueness against existing users
+      while (db.users.find(u => u.username === username)) {
+        usernameCount[baseUsername]++;
+        username = baseUsername + '_' + usernameCount[baseUsername];
+      }
+
+      // Create wali user
+      const waliUser = {
+        id: nextId(db.users),
+        username,
+        password_hash: bcrypt.hashSync('wali123', 10),
+        role: 'wali',
+        nama: namaWali || '-',
+        created_at: new Date().toISOString()
+      };
+      db.users.push(waliUser);
+
+      // Create santri
+      const santri = {
+        id: nextId(db.santri),
+        nama: namaSantri,
+        kamar_id: null,
+        status: 'aktif',
+        kelas_diniyyah: '',
+        kelompok_ngaji: '',
+        jenis_bakat: '',
+        kelas_sekolah: '',
+        kelompok_ngaji_malam: '',
+        alamat: alamat,
+        wali_user_id: waliUser.id,
+        wali_nama: namaWali || '-',
+        extra: {},
+        created_at: new Date().toISOString()
+      };
+      db.santri.push(santri);
+
+      results.push({
+        nama: namaSantri,
+        alamat: alamat,
+        wali: namaWali,
+        username: waliUser.username,
+        password: 'wali123'
+      });
+    }
+
+    saveDB(db);
+    res.json({ message: `Berhasil import ${results.length} santri`, data: results });
+  } catch (err) {
+    console.error('Import Excel error:', err);
+    res.status(500).json({ message: 'Gagal memproses file Excel: ' + err.message });
+  }
+});
+
 // ── Kegiatan ───────────────────────────────────────────
 app.get('/api/kegiatan', authenticate, (req, res) => {
   res.json(db.kegiatan);
