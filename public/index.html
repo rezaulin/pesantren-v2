@@ -2929,6 +2929,7 @@ async function doBulkAdd(){
 /* ================= CARD-BASED REKAP ================= */
 let selectedRekapKegiatan=null;
 let rekapSelectedKelompokId=null;
+let rekapSelectedKelasSekolah=null;
 
 function makePickerCard({id,icon,label,sub,selected,onclick,badge}){
   let h='<div class="picker-card'+(selected?' selected':'')+'" id="'+id+'">';
@@ -3001,6 +3002,7 @@ async function loadRekapKegiatanCards(){
 async function selectRekapKegiatanCard(val,nama){
   selectedRekapKegiatan=val;
   rekapSelectedKelompokId=null;
+  rekapSelectedKelasSekolah=null;
   // Highlight
   document.querySelectorAll('#rekapKegiatanCards .picker-card').forEach(c=>c.classList.remove('selected'));
   if(val===null)$('rekap-keg-all')?.classList.add('selected');
@@ -3009,7 +3011,13 @@ async function selectRekapKegiatanCard(val,nama){
   else $('rekap-keg-'+val)?.classList.add('selected');
 
   // Show/hide kelompok sub-cards
-  if(val===null||val==='absen_malam'||val==='absen_sekolah'){
+  if(val==='absen_sekolah'){
+    // Show kelas filter for Sekolah
+    $('rekapKelompokSection').style.display='';
+    $('rekapKelompokTitle').textContent='🏫 Absen Sekolah — Pilih Kelas';
+    rekapSelectedKelompokId=null;
+    await loadRekapKelasCards();
+  }else if(val===null||val==='absen_malam'){
     $('rekapKelompokSection').style.display='none';
   }else{
     $('rekapKelompokSection').style.display='';
@@ -3018,6 +3026,29 @@ async function selectRekapKegiatanCard(val,nama){
   }
   // Show/hide kamar filter
   $('rekapKamarFilter').style.display=(val==='absen_sekolah')?'none':'';
+  loadRekapData();
+}
+
+async function loadRekapKelasCards(){
+  const container=$('rekapKelompokCards');
+  const kelasList=await api('/api/kelas-sekolah')||[];
+  let html='';
+  html+=makePickerCard({id:'rekap-kelas-all',icon:'📋',label:'Semua Kelas',selected:rekapSelectedKelasSekolah===null,onclick:"selectRekapKelasCard(null,'Semua Kelas')"});
+  kelasList.forEach(k=>{
+    html+=makePickerCard({id:'rekap-kelas-'+k.id,icon:'🎓',label:k.nama,selected:rekapSelectedKelasSekolah===k.nama,onclick:'selectRekapKelasCard('+JSON.stringify(k.nama)+','+JSON.stringify(k.nama)+')'});
+  });
+  container.innerHTML=html;
+  attachPickerClick('rekap-kelas-all',selectRekapKelasCard,null,'Semua Kelas');
+  kelasList.forEach(k=>{
+    attachPickerClick('rekap-kelas-'+k.id,selectRekapKelasCard,k.nama,k.nama);
+  });
+}
+
+async function selectRekapKelasCard(kelasNama,nama){
+  rekapSelectedKelasSekolah=kelasNama;
+  document.querySelectorAll('#rekapKelompokCards .picker-card').forEach(c=>c.classList.remove('selected'));
+  if(kelasNama===null)$('rekap-kelas-all')?.classList.add('selected');
+  else $('rekap-kelas-'+kelasNama)?.classList.add('selected');
   loadRekapData();
 }
 
@@ -3088,6 +3119,7 @@ async function loadRekapData(){
     params.set('tipe','absen_sekolah');
     if(dari)params.set('dari',dari);
     if(sampai)params.set('sampai',sampai);
+    if(rekapSelectedKelasSekolah)params.set('kelas_sekolah',rekapSelectedKelasSekolah);
     const data=await api('/api/rekap?'+params);
     renderRekapTable(data);
   }else{
