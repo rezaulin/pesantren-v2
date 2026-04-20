@@ -3393,9 +3393,11 @@ async function showModal(type,editData){
   } else if(type==='pelanggaran'){
     let pel=null;
     if(editData)pel=editData;
-    html='<h3>'+(pel?'Edit':'Tambah')+' Pelanggaran</h3><div class=\"form-group\"><label>Tanggal</label><input type=\"date\" id=\"mPelTanggal\" value=\"'+(pel?.tanggal||new Date().toISOString().slice(0,10))+'\"></div><div class=\"form-group\"><label>Santri</label><select id=\"mPelSantri\"></select></div><div class=\"form-group\"><label>Jenis Pelanggaran</label><input id=\"mPelJenis\" value=\"'+(pel?.jenis||'')+'\" placeholder=\"Contoh: Terlambat, Bolos, Melawan\"></div><div class=\"form-group\"><label>Keterangan</label><input id=\"mPelKeterangan\" value=\"'+(pel?.keterangan||'')+'\" placeholder=\"Detail pelanggaran\"></div><div class=\"form-group\"><label>Sanksi</label><input id=\"mPelSanksi\" value=\"'+(pel?.sanksi||'')+'\" placeholder=\"Contoh: Teguran, Skorsing\"></div><button class=\"btn btn-primary\" onclick=\"savePelanggaran('+(pel?.id||'')+')\">Simpan</button><button class=\"btn btn-outline\" onclick=\"closeModal()\">Batal</button>';
+    html='<h3>'+(pel?'Edit':'Tambah')+' Pelanggaran</h3><div class=\"form-group\"><label>Tanggal</label><input type=\"date\" id=\"mPelTanggal\" value=\"'+(pel?.tanggal||new Date().toISOString().slice(0,10))+'\"></div><div class=\"form-group\"><label>Santri</label><div style=\"position:relative\"><input type=\"text\" id=\"mPelSearch\" placeholder=\"Ketik nama santri...\" autocomplete=\"off\" style=\"width:100%;padding:.6rem;border:1px solid #ddd;border-radius:8px;font-size:.9rem;box-sizing:border-box\"><input type=\"hidden\" id=\"mPelSantri\"><div id=\"mPelSearchResults\" style=\"position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #ddd;border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;display:none;z-index:100;box-shadow:0 4px 12px rgba(0,0,0,.1)\"></div></div></div><div class=\"form-group\"><label>Jenis Pelanggaran</label><input id=\"mPelJenis\" value=\"'+(pel?.jenis||'')+'\" placeholder=\"Contoh: Terlambat, Bolos, Melawan\"></div><div class=\"form-group\"><label>Keterangan</label><input id=\"mPelKeterangan\" value=\"'+(pel?.keterangan||'')+'\" placeholder=\"Detail pelanggaran\"></div><div class=\"form-group\"><label>Sanksi</label><input id=\"mPelSanksi\" value=\"'+(pel?.sanksi||'')+'\" placeholder=\"Contoh: Teguran, Skorsing\"></div><button class=\"btn btn-primary\" onclick=\"savePelanggaran('+(pel?.id||'')+')\">Simpan</button><button class=\"btn btn-outline\" onclick=\"closeModal()\">Batal</button>';
     $('modalContent').innerHTML=html;$('modalBg').classList.add('active');
-    api('/api/santri').then(data=>{if(data)data.forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=s.nama;if(pel?.santri_id===s.id)o.selected=true;$('mPelSantri').appendChild(o)})});
+    api('/api/santri').then(data=>{window._pelSantriList=data||[];if(pel?.santri_id){const found=data?.find(s=>s.id===pel.santri_id);if(found){$('mPelSearch').value=found.nama;$('mPelSantri').value=found.id}}});
+    $('mPelSearch').addEventListener('input',function(){searchSantriPelanggaran(this.value)});
+    document.addEventListener('click',function pelSearchClose(e){if(!e.target.closest('#mPelSearch')&&!e.target.closest('#mPelSearchResults')){$('mPelSearchResults').style.display='none'}});
   } else if(type==='catatan'){
     let ct=null;
     if(editData)ct=editData;
@@ -3606,6 +3608,20 @@ function openRaportFor(id,nama){
   window._raportAutoLoad={id,nama};
 }
 let raportSearchTimeout=null;
+let pelSearchTimeout=null;
+function searchSantriPelanggaran(q){
+  const box=$('mPelSearchResults');
+  clearTimeout(pelSearchTimeout);
+  pelSearchTimeout=setTimeout(()=>{
+    const ql=q.toLowerCase().trim();
+    if(!ql){box.style.display='none';return}
+    const list=window._pelSantriList||[];
+    const results=list.filter(s=>s.nama.toLowerCase().includes(ql)).slice(0,10);
+    if(!results.length){box.innerHTML='<div style="padding:.5rem .8rem;color:#888">Tidak ditemukan</div>';box.style.display='block';return}
+    box.innerHTML=results.map(s=>'<div style="padding:.5rem .8rem;cursor:pointer;border-bottom:1px solid #f0f0f0" onmouseover="this.style.background=\'#f5f5f5\'" onmouseout="this.style.background=\'#fff\'" onclick="$(\'mPelSantri\').value='+s.id+';$(\'mPelSearch\').value=\''+s.nama.replace(/'/g,"\\'")+'\';$(\'mPelSearchResults\').style.display=\'none\'">'+s.nama+' <span style="font-size:.75rem;color:#888">• '+(s.kelas_diniyyah||'-')+'</span></div>').join('');
+    box.style.display='block';
+  },200);
+}
 function searchSantriRaport(q){
   const box=$('raportSearchResults');
   if(!q||q.length<2){box.style.display='none';return;}
