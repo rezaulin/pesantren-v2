@@ -3047,8 +3047,14 @@ async function loadRekapKelasCards(){
 async function selectRekapKelasCard(kelasNama,nama){
   rekapSelectedKelasSekolah=kelasNama;
   document.querySelectorAll('#rekapKelompokCards .picker-card').forEach(c=>c.classList.remove('selected'));
-  if(kelasNama===null)$('rekap-kelas-all')?.classList.add('selected');
-  else $('rekap-kelas-'+kelasNama)?.classList.add('selected');
+  if(kelasNama===null){
+    $('rekap-kelas-all')?.classList.add('selected');
+  }else{
+    // Find card by matching label text
+    document.querySelectorAll('#rekapKelompokCards .picker-card').forEach(c=>{
+      if(c.textContent.includes(kelasNama))c.classList.add('selected');
+    });
+  }
   loadRekapData();
 }
 
