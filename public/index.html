@@ -2185,11 +2185,7 @@ async function loadKegiatanCards(){
   kegList.forEach(k=>{
     const icon=getKegiatanIcon(k.nama);
     const count=kegCount[k.id]||0;
-    html+='<div class="picker-card" onclick="selectKegiatanCard('+k.id+',\''+k.nama.replace(/'/g,"\\'")+'\')" id="keg-card-'+k.id+'">';
-    html+='<div class="pc-icon">'+icon+'</div>';
-    html+='<div class="pc-label">'+k.nama+'</div>';
-    if(count>0)html+='<div class="pc-badge">'+count+'</div>';
-    html+='</div>';
+    html+=makePickerCard({id:'keg-card-'+k.id,icon:icon,label:k.nama,badge:count>0?count:null,onclick:'selectKegiatanCard('+k.id+','+JSON.stringify(k.nama)+')'});
   });
   // Tambah card untuk tipe pokok (KAMAR, SEKOLAH, dll) yang bukan dari kegiatan tambahan
   const pokokTipes=['KAMAR','SEKOLAH','SOROGAN','SOROGAN_MALAM','BAKAT'];
@@ -2197,12 +2193,9 @@ async function loadKegiatanCards(){
   pokokTipes.forEach(t=>{
     if(existingTipes.has(t)&&!kegList.some(k=>k.nama.toUpperCase().includes(t))){
       const icon=getKegiatanIcon(t);
+      const label=t.replace(/_/g,' ').toLowerCase().replace(/\b\w/g,c=>c.toUpperCase());
       const count=tipeCount[t]||0;
-      html+='<div class="picker-card" onclick="selectKegiatanCard(null,\''+t+'\',true)" id="keg-tipe-'+t+'">';
-      html+='<div class="pc-icon">'+icon+'</div>';
-      html+='<div class="pc-label">'+t.replace(/_/g,' ').toLowerCase().replace(/\b\w/g,c=>c.toUpperCase())+'</div>';
-      if(count>0)html+='<div class="pc-badge">'+count+'</div>';
-      html+='</div>';
+      html+=makePickerCard({id:'keg-tipe-'+t,icon:icon,label:label,badge:count>0?count:null,onclick:"selectKegiatanCard(null,'"+t+"',true)"});
     }
   });
   $('absensiKegiatanCards').innerHTML=html||'<p style="text-align:center;color:var(--text-muted);padding:1rem">Belum ada kegiatan. Tambah di menu Kelola Kegiatan.</p>';
@@ -2237,13 +2230,7 @@ async function loadKelompokCards(kegId,nama,isTipe){
   }
   let html='';
   kelompokList.forEach(k=>{
-    const anggota=k.jumlah_anggota||0;
-    html+='<div class="picker-card" onclick="selectKelompokCard('+k.id+',\''+k.nama.replace(/'/g,"\\'")+'\')" id="kel-card-'+k.id+'">';
-    html+='<div class="pc-icon">👥</div>';
-    html+='<div class="pc-label">'+k.nama+'</div>';
-    html+='<div class="pc-sub">'+anggota+' santri</div>';
-    if(anggota>0)html+='<div class="pc-badge">'+anggota+'</div>';
-    html+='</div>';
+    html+=makePickerCard({id:'kel-card-'+k.id,icon:'👥',label:k.nama,sub:(k.jumlah_anggota||0)+' santri',badge:(k.jumlah_anggota||0)>0?k.jumlah_anggota:null,onclick:'selectKelompokCard('+k.id+','+JSON.stringify(k.nama)+')'});
   });
   $('absensiKelompokCards').innerHTML=html||'<p style="text-align:center;color:var(--text-muted);padding:1rem">Belum ada kelompok. Tambah di menu Kelola Kelompok.</p>';
 }
@@ -2800,6 +2787,16 @@ async function doBulkAdd(){
 let selectedRekapKegiatan=null;
 let rekapSelectedKelompokId=null;
 
+function makePickerCard({id,icon,label,sub,selected,onclick,badge}){
+  let h='<div class="picker-card'+(selected?' selected':'')+'" onclick="'+onclick+'" id="'+id+'">';
+  h+='<div class="pc-icon">'+icon+'</div>';
+  h+='<div class="pc-label">'+label+'</div>';
+  if(sub)h+='<div class="pc-sub">'+sub+'</div>';
+  if(badge)h+='<div class="pc-badge">'+badge+'</div>';
+  h+='</div>';
+  return h;
+}
+
 async function loadRekap(){
   // Init kamar dropdown
   if($('rekapKamar').options.length<=1){
@@ -2814,45 +2811,28 @@ async function loadRekap(){
 
 async function loadRekapKegiatanCards(){
   const container=$('rekapKegiatanCards');
-  if(container.children.length>0)return; // already loaded
+  if(container.children.length>0)return;
   const kegList=await api('/api/kegiatan')||[];
   const kelompokAll=await api('/api/kelompok')||[];
   let html='';
   // "Semua" card
-  html+='<div class="picker-card'+(selectedRekapKegiatan===null?' selected':'")+'" onclick="selectRekapKegiatanCard(null,\'Semua\')" id="rekap-keg-all">';
-  html+='<div class="pc-icon">📊</div>';
-  html+='<div class="pc-label">Semua</div>';
-  html+='</div>';
+  html+=makePickerCard({id:'rekap-keg-all',icon:'📊',label:'Semua',selected:selectedRekapKegiatan===null,onclick:"selectRekapKegiatanCard(null,'Semua')"});
   // Kegiatan cards
   kegList.forEach(k=>{
-    const icon=getKegiatanIcon(k.nama);
-    html+='<div class="picker-card'+(selectedRekapKegiatan===k.id?' selected':'")+'" onclick="selectRekapKegiatanCard('+k.id+',\''+k.nama.replace(/'/g,"\\'")+'\')" id="rekap-keg-'+k.id+'">';
-    html+='<div class="pc-icon">'+icon+'</div>';
-    html+='<div class="pc-label">'+k.nama+'</div>';
-    html+='</div>';
+    html+=makePickerCard({id:'rekap-keg-'+k.id,icon:getKegiatanIcon(k.nama),label:k.nama,selected:selectedRekapKegiatan===k.id,onclick:'selectRekapKegiatanCard('+k.id+','+JSON.stringify(k.nama)+')'});
   });
   // Pokok tipe cards
   const pokokTipes=['KAMAR','SEKOLAH','SOROGAN','SOROGAN_MALAM','BAKAT'];
   const existingTipes=new Set(kelompokAll.map(k=>k.tipe));
   pokokTipes.forEach(t=>{
     if(existingTipes.has(t)&&!kegList.some(k=>k.nama.toUpperCase().includes(t))){
-      const icon=getKegiatanIcon(t);
       const label=t.replace(/_/g,' ').toLowerCase().replace(/\b\w/g,c=>c.toUpperCase());
-      html+='<div class="picker-card'+(selectedRekapKegiatan===('tipe_'+t)?' selected':'")+'" onclick="selectRekapKegiatanCard(\'tipe_'+t+'\',\''+label+'\')" id="rekap-keg-tipe-'+t+'">';
-      html+='<div class="pc-icon">'+icon+'</div>';
-      html+='<div class="pc-label">'+label+'</div>';
-      html+='</div>';
+      html+=makePickerCard({id:'rekap-keg-tipe-'+t,icon:getKegiatanIcon(t),label:label,selected:selectedRekapKegiatan===('tipe_'+t),onclick:"selectRekapKegiatanCard('tipe_"+t+"','"+label+"')"});
     }
   });
-  // Absen Malam & Absen Sekolah cards
-  html+='<div class="picker-card'+(selectedRekapKegiatan==='absen_malam'?' selected':'")+'" onclick="selectRekapKegiatanCard(\'absen_malam\',\'Absen Malam\')" id="rekap-keg-malam">';
-  html+='<div class="pc-icon">🌙</div>';
-  html+='<div class="pc-label">Absen Malam</div>';
-  html+='</div>';
-  html+='<div class="picker-card'+(selectedRekapKegiatan==='absen_sekolah'?' selected':'")+'" onclick="selectRekapKegiatanCard(\'absen_sekolah\',\'Absen Sekolah\')" id="rekap-keg-sekolah">';
-  html+='<div class="pc-icon">🏫</div>';
-  html+='<div class="pc-label">Absen Sekolah</div>';
-  html+='</div>';
+  // Absen Malam & Absen Sekolah
+  html+=makePickerCard({id:'rekap-keg-malam',icon:'🌙',label:'Absen Malam',selected:selectedRekapKegiatan==='absen_malam',onclick:"selectRekapKegiatanCard('absen_malam','Absen Malam')"});
+  html+=makePickerCard({id:'rekap-keg-sekolah',icon:'🏫',label:'Absen Sekolah',selected:selectedRekapKegiatan==='absen_sekolah',onclick:"selectRekapKegiatanCard('absen_sekolah','Absen Sekolah')"});
   container.innerHTML=html;
 }
 
@@ -2891,17 +2871,9 @@ async function loadRekapKelompokCards(val,nama){
   }
   let html='';
   // "Semua" sub-card
-  html+='<div class="picker-card'+(rekapSelectedKelompokId===null?' selected':'")+'" onclick="selectRekapKelompokCard(null)" id="rekap-kel-all">';
-  html+='<div class="pc-icon">📋</div>';
-  html+='<div class="pc-label">Semua</div>';
-  html+='</div>';
+  html+=makePickerCard({id:'rekap-kel-all',icon:'📋',label:'Semua',selected:rekapSelectedKelompokId===null,onclick:"selectRekapKelompokCard(null)"});
   kelompokList.forEach(k=>{
-    const anggota=k.jumlah_anggota||0;
-    html+='<div class="picker-card'+(rekapSelectedKelompokId===k.id?' selected':'")+'" onclick="selectRekapKelompokCard('+k.id+')" id="rekap-kel-'+k.id+'">';
-    html+='<div class="pc-icon">👥</div>';
-    html+='<div class="pc-label">'+k.nama+'</div>';
-    html+='<div class="pc-sub">'+anggota+' santri</div>';
-    html+='</div>';
+    html+=makePickerCard({id:'rekap-kel-'+k.id,icon:'👥',label:k.nama,sub:(k.jumlah_anggota||0)+' santri',selected:rekapSelectedKelompokId===k.id,onclick:'selectRekapKelompokCard('+k.id+')'});
   });
   $('rekapKelompokCards').innerHTML=html;
 }
