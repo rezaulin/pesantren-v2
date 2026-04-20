@@ -784,33 +784,41 @@ app.get('/api/rekap', authenticate, (req, res) => {
     return res.json(list.map(a => {
       const s = db.santri.find(x => x.id === a.santri_id);
       const k = s ? db.kamar.find(x => x.id === s.kamar_id) : null;
-      return { tanggal: a.tanggal, nama: s ? s.nama : '-', kamar_nama: k ? k.nama : '-', kegiatan_nama: 'Sekolah Formal', status: a.status, keterangan: a.keterangan };
+      return { tanggal: a.tanggal, nama: s ? s.nama : '-', kamar_nama: k ? k.nama : '-', kegiatan_nama: 'Sekolah', status: a.status, keterangan: a.keterangan };
     }).sort((a, b) => b.tanggal.localeCompare(a.tanggal)));
   }
-  // Rekap Absensi biasa
-  let list = db.absensi;
-  if (req.query.dari) list = list.filter(a => a.tanggal >= req.query.dari);
-  if (req.query.sampai) list = list.filter(a => a.tanggal <= req.query.sampai);
-  if (req.query.kegiatan_id) list = list.filter(a => a.kegiatan_id == req.query.kegiatan_id);
-  // Filter by santri attributes
-  const santriFilters = ['kamar_id', 'kelas_diniyyah', 'kelompok_ngaji', 'kelompok_ngaji_malam', 'jenis_bakat', 'kelas_sekolah'];
-  santriFilters.forEach(f => {
-    if (req.query[f]) {
-      const santriIds = db.santri.filter(s => String(s[f]) === String(req.query[f])).map(s => s.id);
-      list = list.filter(a => santriIds.includes(a.santri_id));
-    }
+  // Rekap Absensi biasa - GABUNGAN semua (absensi + absen_malam + absen_sekolah)
+  // Convert absen_malam to unified format
+  let malamList = (db.absen_malam || []).map(a => {
+    const s = db.santri.find(x => x.id === a.santri_id);
+    const k = s ? db.kamar.find(x => x.id === s.kamar_id) : null;
+    return { tanggal: a.tanggal, nama: s ? s.nama : '-', kamar_nama: k ? k.nama : '-', kelompok_nama: '-', kegiatan_nama: 'Absen Malam', status: a.status, keterangan: a.keterangan || '' };
   });
-  // Filter by extra field
-  if (req.query.extra_key && req.query.extra_val) {
-    const santriIds = db.santri.filter(s => s.extra && s.extra[req.query.extra_key] === req.query.extra_val).map(s => s.id);
-    list = list.filter(a => santriIds.includes(a.santri_id));
-  }
-  res.json(list.map(a => {
+  // Convert absen_sekolah to unified format
+  let sekolahList = (db.absen_sekolah || []).map(a => {
+    const s = db.santri.find(x => x.id === a.santri_id);
+    const k = s ? db.kamar.find(x => x.id === s.kamar_id) : null;
+    return { tanggal: a.tanggal, nama: s ? s.nama : '-', kamar_nama: k ? k.nama : '-', kelompok_nama: s ? (s.kelas_sekolah || '-') : '-', kegiatan_nama: 'Sekolah', status: a.status, keterangan: a.keterangan || '' };
+  });
+  // Main absensi
+  let list = db.absensi.map(a => {
     const s = db.santri.find(x => x.id === a.santri_id);
     const k = s ? db.kamar.find(x => x.id === s.kamar_id) : null;
     const kg = db.kegiatan.find(x => x.id === a.kegiatan_id);
-    return { tanggal: a.tanggal, nama: s ? s.nama : '-', kamar_nama: k ? k.nama : '-', kegiatan_nama: kg ? kg.nama : '-', status: a.status, keterangan: a.keterangan };
-  }).sort((a, b) => b.tanggal.localeCompare(a.tanggal)));
+    const kl = db.kelompok.find(x => x.id === a.kelompok_id);
+    return { tanggal: a.tanggal, nama: s ? s.nama : '-', kamar_nama: k ? k.nama : '-', kelompok_nama: kl ? kl.nama : '-', kegiatan_nama: kg ? kg.nama : (kl ? kl.nama : '-'), status: a.status, keterangan: a.keterangan || '' };
+  });
+  // Merge all
+  let allList = [...list, ...malamList, ...sekolahList];
+  // Apply date filter
+  if (req.query.dari) allList = allList.filter(a => a.tanggal >= req.query.dari);
+  if (req.query.sampai) allList = allList.filter(a => a.tanggal <= req.query.sampai);
+  // Apply kamar filter
+  if (req.query.kamar_id) {
+    const kamarNama = (db.kamar.find(k => k.id == req.query.kamar_id) || {}).nama;
+    if (kamarNama) allList = allList.filter(a => a.kamar_nama === kamarNama);
+  }
+  res.json(allList.sort((a, b) => b.tanggal.localeCompare(a.tanggal)));
 });
 
 // ── Pengumuman ─────────────────────────────────────────
