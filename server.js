@@ -7,14 +7,16 @@ const PDFDocument = require('pdfkit');
 const multer = require('multer');
 const archiver = require('archiver');
 const ExcelJS = require('exceljs');
+const compression = require('compression');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'pesantren-secret-key';
 const DB_FILE = process.env.DATA_FILE || path.join(__dirname, 'data.json');
 
+app.use(compression());
 app.use(express.json({ limit: '5mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1h', etag: true }));
 
 // Multer - memory storage, max 5MB
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
@@ -36,7 +38,23 @@ function loadDB() {
   }
   return { users: [], kamar: [], kelas_sekolah: [], santri: [], absensi: [], absen_malam: [], absen_sekolah: [], absensi_sesi: [], pengumuman: [], kegiatan: [], kelompok: [], santri_kelompok: [] };
 }
-function saveDB(data) { fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2)); }
+function saveDB(data) { 
+  _pendingSave = true;
+  _pendingData = data;
+}
+let _pendingSave = false;
+let _pendingData = null;
+let _saveTimer = null;
+function _flushSave() {
+  if (!_pendingSave || !_pendingData) return;
+  _pendingSave = false;
+  fs.writeFileSync(DB_FILE, JSON.stringify(_pendingData, null, 2));
+}
+// Save at most every 500ms, flush on exit
+setInterval(() => { if (_pendingSave) _flushSave(); }, 500);
+process.on('exit', _flushSave);
+process.on('SIGINT', () => { _flushSave(); process.exit(); });
+process.on('SIGTERM', () => { _flushSave(); process.exit(); });
 function nextId(arr) { return arr.length ? Math.max(...arr.map(x => x.id)) + 1 : 1; }
 
 // Init default admin
@@ -310,10 +328,19 @@ app.get('/api/santri', authenticate, (req, res) => {
   if (req.query.kelas_sekolah) list = list.filter(s => s.kelas_sekolah === req.query.kelas_sekolah);
   if (req.query.jenis_bakat) list = list.filter(s => s.jenis_bakat === req.query.jenis_bakat);
   if (req.query.kelompok_ngaji_malam) list = list.filter(s => s.kelompok_ngaji_malam === req.query.kelompok_ngaji_malam);
-  res.json(list.map(s => {
+  const mapped = list.map(s => {
     const k = db.kamar.find(x => x.id === s.kamar_id);
     return { ...s, kamar_nama: k ? k.nama : '-' };
-  }));
+  });
+  // Pagination
+  if (req.query.page) {
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    const total = mapped.length;
+    const data = mapped.slice((page - 1) * limit, page * limit);
+    return res.json({ data, total, page, limit, pages: Math.ceil(total / limit) });
+  }
+  res.json(mapped);
 });
 app.post('/api/santri', authenticate, requireAdmin, (req, res) => {
   const { nama, kamar_id, status, kelas_diniyyah, kelompok_ngaji, jenis_bakat, kelas_sekolah, kelompok_ngaji_malam, wali_user_id, extra, alamat } = req.body;
