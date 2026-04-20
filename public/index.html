@@ -2188,7 +2188,7 @@ async function loadKegiatanCards(){
     html+=makePickerCard({id:'keg-card-'+k.id,icon:icon,label:k.nama,badge:count>0?count:null,onclick:'selectKegiatanCard('+k.id+','+JSON.stringify(k.nama)+')'});
   });
   // Tambah card untuk tipe pokok (KAMAR, SEKOLAH, dll) yang bukan dari kegiatan tambahan
-  const pokokTipes=['KAMAR','SEKOLAH','SOROGAN','SOROGAN_MALAM','BAKAT'];
+  const pokokTipes=['KAMAR','SOROGAN','SOROGAN_MALAM','BAKAT'];
   const existingTipes=new Set(kelompokAll.map(k=>k.tipe));
   pokokTipes.forEach(t=>{
     if(existingTipes.has(t)&&!kegList.some(k=>k.nama.toUpperCase().includes(t))){
@@ -2842,7 +2842,7 @@ async function loadRekapKegiatanCards(){
     html+=makePickerCard({id:'rekap-keg-'+k.id,icon:getKegiatanIcon(k.nama),label:k.nama,selected:selectedRekapKegiatan===k.id,onclick:'selectRekapKegiatanCard('+k.id+','+JSON.stringify(k.nama)+')'});
   });
   // Pokok tipe cards
-  const pokokTipes=['KAMAR','SEKOLAH','SOROGAN','SOROGAN_MALAM','BAKAT'];
+  const pokokTipes=['KAMAR','SOROGAN','SOROGAN_MALAM','BAKAT'];
   const existingTipes=new Set(kelompokAll.map(k=>k.tipe));
   pokokTipes.forEach(t=>{
     if(existingTipes.has(t)&&!kegList.some(k=>k.nama.toUpperCase().includes(t))){
