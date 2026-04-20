@@ -57,10 +57,6 @@ if (db.kegiatan.length === 0) {
     { id: 5, nama: 'Ngaji Malam', created_at: new Date().toISOString() },
   ];
 }
-// Ensure "Sekolah Formal" exists (auto-add if missing)
-if (!db.kegiatan.find(k => k.nama.toLowerCase().includes('sekolah'))) {
-  db.kegiatan.push({ id: nextId(db.kegiatan), nama: 'Sekolah Formal', created_at: new Date().toISOString() });
-}
 saveDB(db);
 
 // Backfill: auto-create kelompok untuk kegiatan yang belum punya
@@ -442,7 +438,6 @@ app.delete('/api/kelompok/:id', authenticate, requireAdmin, (req, res) => {
 app.get('/api/kelompok-tipes', authenticate, (req, res) => {
   const builtIn = [
     { value: 'KAMAR', label: '🏠 Kamar', color: '#3b82f6', kategori: 'built-in' },
-    { value: 'SEKOLAH', label: '🏫 Sekolah', color: '#f97316', kategori: 'built-in' },
     { value: 'SOROGAN', label: '📖 Sorogan', color: '#8b5cf6', kategori: 'built-in' },
     { value: 'BAKAT', label: '🎨 Bakat', color: '#ec4899', kategori: 'built-in' },
     { value: 'SOROGAN_MALAM', label: '🌙 Sorogan Malam', color: '#6366f1', kategori: 'built-in' },
@@ -717,7 +712,7 @@ app.post('/api/absen-sekolah/bulk', authenticate, (req, res) => {
     db.absen_sekolah = db.absen_sekolah.filter(a => !(a.tanggal === tanggal && a.recorded_by === req.user.id));
     oldSesiSekolah.created_at = new Date().toISOString();
   } else {
-    db.absensi_sesi.push({ id: nextId(db.absensi_sesi), ustadz_username: req.user.username, kegiatan_id: 0, kelompok_id: kelompokId, kegiatan_nama: 'Sekolah Formal', tanggal, created_at: new Date().toISOString() });
+    db.absensi_sesi.push({ id: nextId(db.absensi_sesi), ustadz_username: req.user.username, kegiatan_id: 0, kelompok_id: kelompokId, kegiatan_nama: 'Sekolah', tanggal, created_at: new Date().toISOString() });
   }
   // Insert ke unified absensi
   items.forEach(item => {
@@ -960,7 +955,7 @@ app.get('/api/raport/download-all', authenticate, (req, res) => {
       let absenSekolahList = (db.absen_sekolah || []).filter(a => a.santri_id === santri.id);
       if (req.query.dari) absenSekolahList = absenSekolahList.filter(a => a.tanggal >= req.query.dari);
       if (req.query.sampai) absenSekolahList = absenSekolahList.filter(a => a.tanggal <= req.query.sampai);
-      if (absenSekolahList.length) { rekap['Sekolah Formal'] = { H: 0, I: 0, S: 0, A: 0 }; absenSekolahList.forEach(a => rekap['Sekolah Formal'][a.status]++); }
+      if (absenSekolahList.length) { rekap['Sekolah'] = { H: 0, I: 0, S: 0, A: 0 }; absenSekolahList.forEach(a => rekap['Sekolah'][a.status]++); }
       const wali = santri.wali_user_id ? db.users.find(u => u.id === santri.wali_user_id) : null;
       const waliD = (wali && wali.nama && wali.nama !== '-') ? wali.nama : waliDisplay_;
       const sampaiD = req.query.sampai ? new Date(req.query.sampai) : new Date();
@@ -1087,10 +1082,10 @@ app.get('/api/raport/:santri_id', authenticate, (req, res) => {
   if (req.query.dari) absenSekolahList = absenSekolahList.filter(a => a.tanggal >= req.query.dari);
   if (req.query.sampai) absenSekolahList = absenSekolahList.filter(a => a.tanggal <= req.query.sampai);
   if (absenSekolahList.length) {
-    rekap['Sekolah Formal'] = { H: 0, I: 0, S: 0, A: 0, detail: [] };
+    rekap['Sekolah'] = { H: 0, I: 0, S: 0, A: 0, detail: [] };
     absenSekolahList.forEach(a => {
-      rekap['Sekolah Formal'][a.status] = (rekap['Sekolah Formal'][a.status] || 0) + 1;
-      rekap['Sekolah Formal'].detail.push({ tanggal: a.tanggal, status: a.status, keterangan: a.keterangan });
+      rekap['Sekolah'][a.status] = (rekap['Sekolah'][a.status] || 0) + 1;
+      rekap['Sekolah'].detail.push({ tanggal: a.tanggal, status: a.status, keterangan: a.keterangan });
     });
   }
   res.json({
@@ -1134,8 +1129,8 @@ app.get('/api/raport/:santri_id/pdf', authenticate, (req, res) => {
   if (req.query.dari) absenSekolahList = absenSekolahList.filter(a => a.tanggal >= req.query.dari);
   if (req.query.sampai) absenSekolahList = absenSekolahList.filter(a => a.tanggal <= req.query.sampai);
   if (absenSekolahList.length) {
-    rekap['Sekolah Formal'] = { H: 0, I: 0, S: 0, A: 0 };
-    absenSekolahList.forEach(a => rekap['Sekolah Formal'][a.status]++);
+    rekap['Sekolah'] = { H: 0, I: 0, S: 0, A: 0 };
+    absenSekolahList.forEach(a => rekap['Sekolah'][a.status]++);
   }
   // Pelanggaran & Catatan
   let pelanggaranList = (db.pelanggaran || []).filter(p => p.santri_id === santri.id);
