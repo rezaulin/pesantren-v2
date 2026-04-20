@@ -755,6 +755,72 @@ tr:hover{background:var(--bg)}
   border-radius:var(--radius-full);
   box-shadow:0 2px 6px rgba(13,148,136,.25);
 }
+/* Manage cards (kamar, kelas) */
+.manage-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+  gap:.7rem;
+  margin-bottom:.8rem;
+}
+.manage-card{
+  background:#fff;
+  border:1.5px solid var(--border);
+  border-radius:var(--radius-lg);
+  padding:1rem;
+  box-shadow:var(--shadow-sm);
+  transition:all .2s;
+  position:relative;
+}
+.manage-card:hover{
+  border-color:var(--primary-light);
+  box-shadow:var(--shadow-md);
+  transform:translateY(-2px);
+}
+.manage-card .mc-icon{
+  font-size:1.8rem;
+  margin-bottom:.5rem;
+}
+.manage-card .mc-title{
+  font-size:.95rem;
+  font-weight:700;
+  color:var(--text);
+  margin-bottom:.3rem;
+}
+.manage-card .mc-stats{
+  display:flex;
+  gap:.6rem;
+  margin:.5rem 0;
+  flex-wrap:wrap;
+}
+.manage-card .mc-stat{
+  font-size:.75rem;
+  color:var(--text-muted);
+  background:var(--bg);
+  padding:2px 8px;
+  border-radius:6px;
+}
+.manage-card .mc-stat b{
+  color:var(--text);
+}
+.manage-card .mc-actions{
+  display:flex;
+  gap:.4rem;
+  margin-top:.6rem;
+  border-top:1px solid var(--border);
+  padding-top:.5rem;
+}
+.manage-card .mc-anggota{
+  cursor:pointer;
+  color:var(--primary);
+  font-weight:600;
+  font-size:.8rem;
+}
+.manage-card .mc-anggota:hover{
+  text-decoration:underline;
+}
+.dark .manage-card{background:#1e293b;border-color:#334155}
+.dark .manage-card:hover{border-color:#14b8a6}
+.dark .manage-card .mc-stat{background:#0f172a}
 /* Kelompok sub-grid (muncul setelah pilih kegiatan) */
 .kelompok-section{
   margin-bottom:.8rem;
@@ -1371,7 +1437,7 @@ tr:hover{background:var(--bg)}
         <h3 class="section-title" style="margin:0">Kelola Kamar</h3>
         <button class="btn btn-primary btn-sm" onclick="showModal('kamar')" id="btnTambahKamar">+ Tambah</button>
       </div>
-      <div class="table-wrap"><table><thead><tr><th>No</th><th>Nama Kamar</th><th>Kapasitas</th><th>Pengurus</th><th>Anggota</th><th>Aksi</th></tr></thead><tbody id="kamarBody"></tbody></table></div>
+      <div id="kamarGrid" class="manage-grid"></div>
       <!-- Detail anggota kamar -->
       <div id="kamarDetail" style="display:none;margin-top:1rem">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">
@@ -1391,7 +1457,7 @@ tr:hover{background:var(--bg)}
         <h3 class="section-title" style="margin:0">Kelola Kelas Sekolah</h3>
         <button class="btn btn-primary btn-sm" onclick="showModal('kelas-sekolah')" id="btnTambahKelas">+ Tambah</button>
       </div>
-      <div class="table-wrap"><table><thead><tr><th>No</th><th>Nama Kelas</th><th>Jumlah Santri</th><th>Aksi</th></tr></thead><tbody id="kelasBody"></tbody></table></div>
+      <div id="kelasGrid" class="manage-grid"></div>
       <!-- Detail anggota kelas -->
       <div id="kelasDetail" style="display:none;margin-top:1rem">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">
@@ -2616,16 +2682,16 @@ async function loadKamar(){
   const data=await api('/api/kamar');
   if(!data)return;
   if($('btnTambahKamar'))$('btnTambahKamar').style.display=me.role==='admin'?'':'none';
-  // Count anggota per kamar
   const santri=await api('/api/santri')||[];
   const anggotaCount={};
   santri.forEach(s=>{if(s.status==='aktif')anggotaCount[s.kamar_id]=(anggotaCount[s.kamar_id]||0)+1});
-  $('kamarBody').innerHTML=data.map((k,i)=>{
+  $('kamarGrid').innerHTML=data.map(k=>{
     const count=anggotaCount[k.id]||0;
-    const anggotaBtn=me.role==='admin'?'<span style="cursor:pointer;color:var(--primary)" onclick="showKamarDetail('+k.id+',\''+k.nama.replace(/'/g,"\\'")+'\')">'+count+' santri</span>':''+count;
-    const actions=me.role==='admin'?'<button class="btn btn-outline btn-sm" onclick="editKamar('+k.id+')">✏️</button> <button class="btn btn-danger btn-sm" onclick="hapus(\'kamar\','+k.id+')">🗑️</button>':'';
-    return '<tr><td>'+(i+1)+'</td><td>'+k.nama+'</td><td>'+k.kapasitas+'</td><td>'+(k.pengurus||'-')+'</td><td>'+anggotaBtn+'</td><td>'+actions+'</td></tr>';
-  }).join('');
+    const pct=k.kapasitas?Math.round(count/k.kapasitas*100):0;
+    const anggotaHtml=me.role==='admin'?'<span class="mc-anggota" onclick="showKamarDetail('+k.id+',\''+k.nama.replace(/'/g,"\\'")+'\')">'+count+' santri</span>':'<span style="font-size:.8rem">'+count+' santri</span>';
+    const actions=me.role==='admin'?'<div class="mc-actions"><button class="btn btn-outline btn-sm" onclick="editKamar('+k.id+')">✏️ Edit</button> <button class="btn btn-danger btn-sm" onclick="hapus(\'kamar\','+k.id+')">🗑️</button></div>':'';
+    return '<div class="manage-card"><div class="mc-icon">🏠</div><div class="mc-title">'+k.nama+'</div><div class="mc-stats"><span class="mc-stat">📦 Kapasitas <b>'+k.kapasitas+'</b></span>'+(k.pengurus?'<span class="mc-stat">👤 <b>'+k.pengurus+'</b></span>':'')+'<span class="mc-stat">👥 '+anggotaHtml+'</span>'+(pct>0?'<span class="mc-stat">'+pct+'%</span>':'')+'</div>'+actions+'</div>';
+  }).join('')||'<p style="text-align:center;color:var(--text-muted)">Belum ada kamar</p>';
 }
 function editKamar(id){api('/api/kamar').then(data=>{const k=data.find(x=>x.id===id);if(k)showModal('kamar',k)})}
 
@@ -2698,11 +2764,11 @@ async function loadKelasSekolah(){
   const data=await api('/api/kelas-sekolah');
   if(!data)return;
   if($('btnTambahKelas'))$('btnTambahKelas').style.display=me.role==='admin'?'':'none';
-  $('kelasBody').innerHTML=data.map((k,i)=>{
-    const anggotaBtn=me.role==='admin'?'<span style="cursor:pointer;color:var(--primary)" onclick="showKelasDetail(\''+k.nama.replace(/'/g,"\\'")+'\')">'+k.jumlah_santri+' santri</span>':''+k.jumlah_santri;
-    const actions=me.role==='admin'?'<button class="btn btn-outline btn-sm" onclick="editKelasSekolah('+k.id+')">✏️</button> <button class="btn btn-danger btn-sm" onclick="hapusKelasSekolah('+k.id+')">🗑️</button>':'';
-    return '<tr><td>'+(i+1)+'</td><td>'+k.nama+'</td><td>'+anggotaBtn+'</td><td>'+actions+'</td></tr>';
-  }).join('');
+  $('kelasGrid').innerHTML=data.map(k=>{
+    const anggotaHtml=me.role==='admin'?'<span class="mc-anggota" onclick="showKelasDetail(\''+k.nama.replace(/'/g,"\\'")+'\')">'+k.jumlah_santri+' santri</span>':'<span style="font-size:.8rem">'+k.jumlah_santri+' santri</span>';
+    const actions=me.role==='admin'?'<div class="mc-actions"><button class="btn btn-outline btn-sm" onclick="editKelasSekolah('+k.id+')">✏️ Edit</button> <button class="btn btn-danger btn-sm" onclick="hapusKelasSekolah('+k.id+')">🗑️</button></div>':'';
+    return '<div class="manage-card"><div class="mc-icon">🎓</div><div class="mc-title">'+k.nama+'</div><div class="mc-stats"><span class="mc-stat">👥 '+anggotaHtml+'</span></div>'+actions+'</div>';
+  }).join('')||'<p style="text-align:center;color:var(--text-muted)">Belum ada kelas</p>';
 }
 function editKelasSekolah(id){
   api('/api/kelas-sekolah').then(data=>{
