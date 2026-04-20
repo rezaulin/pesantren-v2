@@ -2199,6 +2199,16 @@ async function loadKegiatanCards(){
     }
   });
   $('absensiKegiatanCards').innerHTML=html||'<p style="text-align:center;color:var(--text-muted);padding:1rem">Belum ada kegiatan. Tambah di menu Kelola Kegiatan.</p>';
+  // Attach click handlers
+  kegList.forEach(k=>{
+    attachPickerClick('keg-card-'+k.id,selectKegiatanCard,k.id,k.nama);
+  });
+  pokokTipes.forEach(t=>{
+    if(existingTipes.has(t)&&!kegList.some(k=>k.nama.toUpperCase().includes(t))){
+      const label=t.replace(/_/g,' ').toLowerCase().replace(/\b\w/g,c=>c.toUpperCase());
+      attachPickerClick('keg-tipe-'+t,selectKegiatanCard,null,t,true);
+    }
+  });
 }
 
 async function selectKegiatanCard(kegId,nama,isTipe){
@@ -2233,6 +2243,10 @@ async function loadKelompokCards(kegId,nama,isTipe){
     html+=makePickerCard({id:'kel-card-'+k.id,icon:'👥',label:k.nama,sub:(k.jumlah_anggota||0)+' santri',badge:(k.jumlah_anggota||0)>0?k.jumlah_anggota:null,onclick:'selectKelompokCard('+k.id+','+JSON.stringify(k.nama)+')'});
   });
   $('absensiKelompokCards').innerHTML=html||'<p style="text-align:center;color:var(--text-muted);padding:1rem">Belum ada kelompok. Tambah di menu Kelola Kelompok.</p>';
+  // Attach click handlers
+  kelompokList.forEach(k=>{
+    attachPickerClick('kel-card-'+k.id,selectKelompokCard,k.id,k.nama);
+  });
 }
 
 async function selectKelompokCard(kelompokId,nama){
@@ -2788,13 +2802,19 @@ let selectedRekapKegiatan=null;
 let rekapSelectedKelompokId=null;
 
 function makePickerCard({id,icon,label,sub,selected,onclick,badge}){
-  let h='<div class="picker-card'+(selected?' selected':'')+'" onclick="'+onclick+'" id="'+id+'">';
+  let h='<div class="picker-card'+(selected?' selected':'')+'" id="'+id+'">';
   h+='<div class="pc-icon">'+icon+'</div>';
   h+='<div class="pc-label">'+label+'</div>';
   if(sub)h+='<div class="pc-sub">'+sub+'</div>';
   if(badge)h+='<div class="pc-badge">'+badge+'</div>';
   h+='</div>';
+  // Attach click handler via data attribute to avoid quote escaping issues
   return h;
+}
+
+function attachPickerClick(id,fn,...args){
+  const el=document.getElementById(id);
+  if(el)el.addEventListener('click',()=>fn(...args));
 }
 
 async function loadRekap(){
@@ -2834,6 +2854,19 @@ async function loadRekapKegiatanCards(){
   html+=makePickerCard({id:'rekap-keg-malam',icon:'🌙',label:'Absen Malam',selected:selectedRekapKegiatan==='absen_malam',onclick:"selectRekapKegiatanCard('absen_malam','Absen Malam')"});
   html+=makePickerCard({id:'rekap-keg-sekolah',icon:'🏫',label:'Absen Sekolah',selected:selectedRekapKegiatan==='absen_sekolah',onclick:"selectRekapKegiatanCard('absen_sekolah','Absen Sekolah')"});
   container.innerHTML=html;
+  // Attach click handlers
+  attachPickerClick('rekap-keg-all',selectRekapKegiatanCard,null,'Semua');
+  kegList.forEach(k=>{
+    attachPickerClick('rekap-keg-'+k.id,selectRekapKegiatanCard,k.id,k.nama);
+  });
+  pokokTipes.forEach(t=>{
+    if(existingTipes.has(t)&&!kegList.some(k=>k.nama.toUpperCase().includes(t))){
+      const label=t.replace(/_/g,' ').toLowerCase().replace(/\b\w/g,c=>c.toUpperCase());
+      attachPickerClick('rekap-keg-tipe-'+t,selectRekapKegiatanCard,'tipe_'+t,label);
+    }
+  });
+  attachPickerClick('rekap-keg-malam',selectRekapKegiatanCard,'absen_malam','Absen Malam');
+  attachPickerClick('rekap-keg-sekolah',selectRekapKegiatanCard,'absen_sekolah','Absen Sekolah');
 }
 
 async function selectRekapKegiatanCard(val,nama){
@@ -2876,6 +2909,11 @@ async function loadRekapKelompokCards(val,nama){
     html+=makePickerCard({id:'rekap-kel-'+k.id,icon:'👥',label:k.nama,sub:(k.jumlah_anggota||0)+' santri',selected:rekapSelectedKelompokId===k.id,onclick:'selectRekapKelompokCard('+k.id+')'});
   });
   $('rekapKelompokCards').innerHTML=html;
+  // Attach click handlers
+  attachPickerClick('rekap-kel-all',selectRekapKelompokCard,null);
+  kelompokList.forEach(k=>{
+    attachPickerClick('rekap-kel-'+k.id,selectRekapKelompokCard,k.id);
+  });
 }
 
 async function selectRekapKelompokCard(kelompokId){
