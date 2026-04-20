@@ -82,6 +82,13 @@ db.kegiatan.forEach(k => {
 });
 saveDB(db);
 
+// Ensure kelompok Sekolah exists for absen_sekolah
+if (!db.kelompok.find(k => k.tipe === 'SEKOLAH')) {
+  db.kelompok.push({ id: nextId(db.kelompok), nama: 'Sekolah', tipe: 'SEKOLAH', kegiatan_nama: 'Sekolah', created_at: new Date().toISOString() });
+  saveDB(db);
+  console.log('Auto-created kelompok Sekolah');
+}
+
 // ── Auth ───────────────────────────────────────────────
 function authenticate(req, res, next) {
   const token = (req.headers.authorization || '').replace('Bearer ', '');
@@ -679,7 +686,7 @@ app.post('/api/absen-malam/bulk', authenticate, (req, res) => {
 // ── Absen Sekolah (Tabel Terpisah) ─────────────────────
 app.get('/api/absen-sekolah', authenticate, (req, res) => {
   // Read from unified absensi table
-  const kelompok = db.kelompok.find(k => k.nama === 'Sekolah Formal');
+  const kelompok = db.kelompok.find(k => k.tipe === 'SEKOLAH');
   const kelompokId = kelompok ? kelompok.id : null;
   let list = kelompokId ? db.absensi.filter(a => a.kelompok_id === kelompokId) : (db.absen_sekolah || []);
   if (req.query.tanggal) list = list.filter(a => a.tanggal === req.query.tanggal);
@@ -699,11 +706,11 @@ app.post('/api/absen-sekolah/bulk', authenticate, (req, res) => {
   if (!db.absensi_sesi) db.absensi_sesi = [];
   const { tanggal, items } = req.body;
   if (!tanggal || !items) return res.status(400).json({ message: 'Data tidak lengkap (tanggal, items wajib)' });
-  // Cari kelompok Sekolah Formal
-  const kelompok = db.kelompok.find(k => k.nama === 'Sekolah Formal');
+  // Cari kelompok Sekolah
+  const kelompok = db.kelompok.find(k => k.tipe === 'SEKOLAH');
   const kelompokId = kelompok ? kelompok.id : null;
   // ── Sesi: replace jika sudah ada ──
-  const oldSesiSekolah = db.absensi_sesi.find(s => s.ustadz_username === req.user.username && (s.kegiatan_nama === 'Sekolah Formal' || (kelompokId && s.kelompok_id === kelompokId)) && s.tanggal === tanggal);
+  const oldSesiSekolah = db.absensi_sesi.find(s => s.ustadz_username === req.user.username && (s.kegiatan_nama === 'Sekolah' || (kelompokId && s.kelompok_id === kelompokId)) && s.tanggal === tanggal);
   if (oldSesiSekolah) {
     if (kelompokId) {
       db.absensi = db.absensi.filter(a => !(a.kelompok_id === kelompokId && a.tanggal === tanggal && a.recorded_by === req.user.id));
@@ -767,9 +774,10 @@ app.get('/api/rekap', authenticate, (req, res) => {
       return { tanggal: a.tanggal, nama: s ? s.nama : '-', kamar_nama: k ? k.nama : '-', kegiatan_nama: 'Absen Malam', status: a.status, keterangan: a.keterangan };
     }).sort((a, b) => b.tanggal.localeCompare(a.tanggal)));
   }
-  // Rekap Absen Sekolah - tabel terpisah
+  // Rekap Absen Sekolah - from unified absensi table
   if (req.query.tipe === 'absen_sekolah') {
-    let list = db.absen_sekolah || [];
+    const sk = db.kelompok.find(k => k.tipe === 'SEKOLAH');
+    let list = sk ? db.absensi.filter(a => a.kelompok_id === sk.id) : [];
     if (req.query.dari) list = list.filter(a => a.tanggal >= req.query.dari);
     if (req.query.sampai) list = list.filter(a => a.tanggal <= req.query.sampai);
     if (req.query.kelas_sekolah) {
@@ -779,7 +787,7 @@ app.get('/api/rekap', authenticate, (req, res) => {
     return res.json(list.map(a => {
       const s = db.santri.find(x => x.id === a.santri_id);
       const k = s ? db.kamar.find(x => x.id === s.kamar_id) : null;
-      return { tanggal: a.tanggal, nama: s ? s.nama : '-', kamar_nama: k ? k.nama : '-', kegiatan_nama: 'Sekolah', status: a.status, keterangan: a.keterangan };
+      return { tanggal: a.tanggal, nama: s ? s.nama : '-', kamar_nama: k ? k.nama : '-', kelompok_nama: s ? (s.kelas_sekolah || '-') : '-', kegiatan_nama: 'Sekolah', status: a.status, keterangan: a.keterangan || '' };
     }).sort((a, b) => b.tanggal.localeCompare(a.tanggal)));
   }
   // Rekap Absensi biasa - GABUNGAN semua (absensi + absen_malam + absen_sekolah)
@@ -796,12 +804,15 @@ app.get('/api/rekap', authenticate, (req, res) => {
     return { tanggal: a.tanggal, nama: s ? s.nama : '-', kamar_nama: k ? k.nama : '-', kelompok_nama: s ? (s.kelas_sekolah || '-') : '-', kegiatan_nama: 'Sekolah', status: a.status, keterangan: a.keterangan || '' };
   });
   // Main absensi
+  const sekolahKelompok = db.kelompok.find(k => k.tipe === 'SEKOLAH');
   let list = db.absensi.map(a => {
     const s = db.santri.find(x => x.id === a.santri_id);
     const k = s ? db.kamar.find(x => x.id === s.kamar_id) : null;
     const kg = db.kegiatan.find(x => x.id === a.kegiatan_id);
     const kl = db.kelompok.find(x => x.id === a.kelompok_id);
-    return { tanggal: a.tanggal, nama: s ? s.nama : '-', kamar_nama: k ? k.nama : '-', kelompok_nama: kl ? kl.nama : '-', kegiatan_nama: kg ? kg.nama : (kl ? kl.nama : '-'), status: a.status, keterangan: a.keterangan || '' };
+    // For Sekolah: kelompok_nama = kelas, kegiatan_nama = Sekolah
+    const isSekolah = sekolahKelompok && a.kelompok_id === sekolahKelompok.id;
+    return { tanggal: a.tanggal, nama: s ? s.nama : '-', kamar_nama: k ? k.nama : '-', kelompok_nama: isSekolah ? (s ? (s.kelas_sekolah || '-') : '-') : (kl ? kl.nama : '-'), kegiatan_nama: isSekolah ? 'Sekolah' : (kg ? kg.nama : (kl ? kl.nama : '-')), status: a.status, keterangan: a.keterangan || '' };
   });
   // Merge all
   let allList = [...list, ...malamList, ...sekolahList];

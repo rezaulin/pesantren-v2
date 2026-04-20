@@ -1468,7 +1468,7 @@ tr:hover{background:var(--bg)}
         <select id="rekapKamar" onchange="loadRekap()" style="padding:.4rem .6rem;border:1.5px solid var(--border);border-radius:8px;font-size:.8rem"><option value="">Semua Kamar</option></select>
       </div>
       <!-- Data -->
-      <div class="table-wrap"><table><thead><tr><th>Tanggal</th><th>Santri</th><th>Kamar</th><th>Kelompok</th><th>Status</th><th>Ket</th></tr></thead><tbody id="rekapBody"></tbody></table></div>
+      <div class="table-wrap"><table><thead><tr><th>Tanggal</th><th>Santri</th><th>Kamar</th><th>Kelompok</th><th>Kegiatan</th><th>Status</th><th>Ket</th></tr></thead><tbody id="rekapBody"></tbody></table></div>
     </div>
 
     <!-- LAPORAN -->
@@ -3112,8 +3112,8 @@ function renderRekapTable(data){
   const statusColor={H:'var(--green-ok)',I:'var(--yellow)',S:'var(--blue)',A:'var(--red)'};
   $('rekapBody').innerHTML=data.map(r=>{
     const sc=statusColor[r.status]||'#888';
-    return '<tr><td>'+r.tanggal+'</td><td>'+r.nama+'</td><td>'+r.kamar_nama+'</td><td>'+(r.kelompok_nama||'-')+'</td><td><span style="color:'+sc+';font-weight:600">'+(statusMap[r.status]||r.status)+'</span></td><td>'+(r.keterangan||'-')+'</td></tr>';
-  }).join('')||'<tr><td colspan="6" style="text-align:center">Tidak ada data</td></tr>';
+    return '<tr><td>'+r.tanggal+'</td><td>'+r.nama+'</td><td>'+r.kamar_nama+'</td><td>'+(r.kelompok_nama||'-')+'</td><td>'+(r.kegiatan_nama||'-')+'</td><td><span style=\"color:'+sc+';font-weight:600\">'+(statusMap[r.status]||r.status)+'</span></td><td>'+(r.keterangan||'-')+'</td></tr>';
+  }).join('')||'<tr><td colspan=\"7\" style=\"text-align:center\">Tidak ada data</td></tr>';
 }
 /* ================= END CARD-BASED REKAP ================= */
 
