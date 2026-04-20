@@ -1085,23 +1085,44 @@ tr:hover{background:var(--bg)}
       <div id="dashboardWidgets"></div>
     </div>
 
-    <!-- ABSENSI -->
+    <!-- ABSENSI (Dinamis - Unified) -->
     <div class="page" id="page-absensi">
       <h3 class="section-title">Absensi Santri</h3>
-      <div class="kegiatan-tabs" id="kegiatanTabs"></div>
-      <div class="filter-bar" style="margin-top:.3rem">
-        <input type="date" id="absensiTanggal" onchange="loadAbsensi()">
-        <select id="absensiFilter" onchange="loadAbsensi()"><option value="">Semua</option></select>
+
+      <!-- Step 1: Pilih Tanggal + Tipe Kelompok -->
+      <div class="filter-bar" style="margin-bottom:.5rem">
+        <input type="date" id="absensiTanggal">
+        <select id="absensiTipe" onchange="absensiOnTipeChange()">
+          <option value="">-- Pilih Tipe --</option>
+        </select>
       </div>
-      <div id="absensiFilterLabel" style="font-size:.75rem;color:#888;margin-bottom:.3rem"></div>
-      <div class="absensi-toolbar">
-        <input type="text" class="search-input" id="searchSantri" placeholder="🔍 Cari nama santri..." oninput="filterSantri()">
-        <button class="btn-semua-hadir" onclick="semuaHadir()">✅ Semua Hadir</button>
+
+      <!-- Step 2: Pilih Kelompok (muncul setelah tipe dipilih) -->
+      <div id="absensiStep2" style="display:none;margin-bottom:.5rem">
+        <div class="filter-bar">
+          <select id="absensiKelompok" onchange="absensiOnKelompokChange()" style="flex:1">
+            <option value="">-- Pilih Kelompok --</option>
+          </select>
+        </div>
       </div>
-      <div class="counter-bar" id="counterBar"></div>
-      <div class="absensi-grid" id="absensiGrid"></div>
-      <div class="save-indicator" id="saveIndicator"></div>
-      <button class="btn btn-primary" style="margin-top:.8rem;width:100%" onclick="simpanAbsensi()">💾 Simpan Absensi</button>
+
+      <!-- Step 3: List Santri (muncul setelah kelompok dipilih) -->
+      <div id="absensiStep3" style="display:none">
+        <div class="absensi-toolbar">
+          <input type="text" class="search-input" id="searchSantri" placeholder="🔍 Cari nama santri..." oninput="filterSantriDinamis()">
+          <button class="btn-semua-hadir" onclick="semuaHadirDinamis()">✅ Semua Hadir</button>
+        </div>
+        <div class="counter-bar" id="counterBar"></div>
+        <div class="absensi-grid" id="absensiGrid"></div>
+        <div class="save-indicator" id="saveIndicator"></div>
+        <button class="btn btn-primary" style="margin-top:.8rem;width:100%" onclick="simpanAbsensiDinamis()">💾 Simpan Absensi</button>
+      </div>
+
+      <!-- Placeholder kalau belum pilih -->
+      <div id="absensiPlaceholder" style="text-align:center;padding:3rem 1rem;color:var(--text-muted)">
+        <div style="font-size:3rem;margin-bottom:.5rem">📋</div>
+        <p>Pilih <b>Tipe</b> dan <b>Kelompok</b> untuk mulai absensi</p>
+      </div>
     </div>
 
     <!-- ABSEN MALAM -->
@@ -1142,7 +1163,18 @@ tr:hover{background:var(--bg)}
         <h3 class="section-title" style="margin:0">Kelola Kamar</h3>
         <button class="btn btn-primary btn-sm" onclick="showModal('kamar')" id="btnTambahKamar">+ Tambah</button>
       </div>
-      <div class="table-wrap"><table><thead><tr><th>No</th><th>Nama</th><th>Kapasitas</th><th>Pengurus</th><th>Aksi</th></tr></thead><tbody id="kamarBody"></tbody></table></div>
+      <div class="table-wrap"><table><thead><tr><th>No</th><th>Nama Kamar</th><th>Kapasitas</th><th>Pengurus</th><th>Anggota</th><th>Aksi</th></tr></thead><tbody id="kamarBody"></tbody></table></div>
+      <!-- Detail anggota kamar -->
+      <div id="kamarDetail" style="display:none;margin-top:1rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">
+          <h4 id="kamarDetailTitle" style="margin:0"></h4>
+          <div style="display:flex;gap:.5rem">
+            <button class="btn btn-primary btn-sm" onclick="showBulkAddKamar()">+ Tambah Santri</button>
+            <button class="btn btn-outline btn-sm" onclick="hideKamarDetail()">✕ Tutup</button>
+          </div>
+        </div>
+        <div class="table-wrap"><table><thead><tr><th>No</th><th>Nama</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="kamarAnggotaBody"></tbody></table></div>
+      </div>
     </div>
 
     <!-- KEGIATAN -->
@@ -1152,6 +1184,27 @@ tr:hover{background:var(--bg)}
         <button class="btn btn-primary btn-sm" onclick="showModal('kegiatan')">+ Tambah</button>
       </div>
       <div class="table-wrap"><table><thead><tr><th>No</th><th>Nama Kegiatan</th><th>Kategori</th><th>Urutan</th><th>Aksi</th></tr></thead><tbody id="kegiatanBody"></tbody></table></div>
+    </div>
+
+    <!-- PHASE 1: KELOMPOK MASTER -->
+    <div class="page" id="page-kelompok">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem">
+        <h3 class="section-title" style="margin:0">Kelola Kelompok</h3>
+        <button class="btn btn-primary btn-sm" onclick="showModal('kelompok')" id="btnTambahKelompok">+ Tambah</button>
+      </div>
+      <div class="kegiatan-tabs" id="kelompokTabs" style="margin-bottom:.8rem"></div>
+      <div class="table-wrap"><table><thead><tr><th>No</th><th>Nama Sub-Grup</th><th>Kegiatan</th><th>Tipe</th><th>Anggota</th><th>Aksi</th></tr></thead><tbody id="kelompokBody"></tbody></table></div>
+      <!-- Detail anggota (hidden by default) -->
+      <div id="kelompokDetail" style="display:none;margin-top:1rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">
+          <h4 id="kelompokDetailTitle" style="margin:0"></h4>
+          <div>
+            <button class="btn btn-primary btn-sm" onclick="showBulkAddModal()">+ Tambah Santri</button>
+            <button class="btn btn-outline btn-sm" onclick="hideKelompokDetail()">✕ Tutup</button>
+          </div>
+        </div>
+        <div class="table-wrap"><table><thead><tr><th>No</th><th>Nama Santri</th><th>Status</th><th>Bergabung</th><th>Aksi</th></tr></thead><tbody id="kelompokAnggotaBody"></tbody></table></div>
+      </div>
     </div>
 
     <!-- USERS -->
@@ -1169,18 +1222,22 @@ tr:hover{background:var(--bg)}
       <div class="filter-bar">
         <input type="date" id="rekapDari">
         <input type="date" id="rekapSampai">
+        <select id="rekapTipe" onchange="rekapOnTipeChange()" style="min-width:140px">
+          <option value="">Semua Tipe</option>
+        </select>
         <button class="btn btn-primary btn-sm" onclick="loadRekap()">Filter</button>
         <button class="btn btn-outline btn-sm" onclick="exportPDF()">📥 PDF</button>
         <button class="btn btn-outline btn-sm" onclick="exportExcel()">📊 Excel</button>
       </div>
       <div class="kegiatan-tabs" id="rekapTabs"></div>
       <div id="rekapFilterArea" style="margin:.5rem 0;display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
+        <select id="rekapKelompok" style="display:none" onchange="loadRekap()"><option value="">Semua Kelompok</option></select>
         <select id="rekapKamar" onchange="loadRekap()"><option value="">Semua Kamar</option></select>
         <select id="rekapKelas" style="display:none" onchange="loadRekap()"><option value="">Semua Kelas</option></select>
         <span id="rekapFilterLabel" style="font-size:.75rem;color:#666"></span>
         <select id="rekapFilter" style="display:none" onchange="loadRekap()"><option value="">Semua</option></select>
       </div>
-      <div class="table-wrap"><table><thead><tr><th>Tanggal</th><th>Santri</th><th>Kamar</th><th>Status</th><th>Ket</th></tr></thead><tbody id="rekapBody"></tbody></table></div>
+      <div class="table-wrap"><table><thead><tr><th>Tanggal</th><th>Santri</th><th>Kamar</th><th>Kelompok</th><th>Status</th><th>Ket</th></tr></thead><tbody id="rekapBody"></tbody></table></div>
     </div>
 
     <!-- LAPORAN -->
@@ -1207,7 +1264,16 @@ tr:hover{background:var(--bg)}
         <button class="btn btn-outline btn-sm" onclick="exportRekapUstadzPDF()">📥 PDF</button>
         <button class="btn btn-outline btn-sm" onclick="exportRekapUstadzExcel()">📊 Excel</button>
       </div>
-      <div id="rekapUstadzContent"></div>
+      <!-- Ustadz Cards Grid -->
+      <div id="ustadzCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.8rem;margin-bottom:1rem"></div>
+      <!-- Detail Panel (shown on card click) -->
+      <div id="ustadzDetail" style="display:none;background:#fff;border-radius:14px;padding:1rem;box-shadow:var(--shadow)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem">
+          <h4 id="ustadzDetailTitle" style="margin:0"></h4>
+          <button class="btn btn-outline btn-sm" onclick="hideUstadzDetail()">✕ Tutup</button>
+        </div>
+        <div id="ustadzDetailContent"></div>
+      </div>
     </div>
 
     <!-- PENGATURAN -->
@@ -1481,6 +1547,7 @@ function buildNav(){
     {id:'home',icon:'🏠',label:'Beranda'},
     {id:'absensi',icon:'✅',label:'Absensi'},
     {id:'santri',icon:'👨‍🎓',label:'Data Santri'},
+    {id:'kelompok',icon:'🏷️',label:'Kelola Kelompok'},
     {id:'kamar',icon:'🏠',label:'Kelola Kamar'},
     {id:'kegiatan',icon:'📚',label:'Kelola Kegiatan'},
     {id:'users',icon:'👥',label:'Kelola Pengguna'},
@@ -1533,6 +1600,7 @@ function buildGridMenu(){
     ]},
     {title:'📁 Data Master',items:[
       {id:'santri',icon:'👨‍🎓',label:'Data Santri'},
+      {id:'kelompok',icon:'🏷️',label:'Kelompok'},
       {id:'kamar',icon:'🏠',label:'Kelola Kamar'},
       {id:'kegiatan',icon:'📚',label:'Kegiatan'},
       {id:'users',icon:'👥',label:'Pengguna'},
@@ -1650,6 +1718,7 @@ function loadPageData(page){
   if(page==='absenmalam')loadAbsenMalam();
   if(page==='absensekolah')loadAbsenSekolah();
   if(page==='santri')loadSantri();
+  if(page==='kelompok')loadKelompok();
   if(page==='kamar')loadKamar();
   if(page==='kegiatan')loadKegiatan();
   if(page==='users')loadUsers();
@@ -1858,7 +1927,132 @@ async function buildFilterDropdown(kegNama,kegId){
     lbl.textContent='Filter: '+kegNama;
   }
 }
+/* ================= PHASE 3: ABSENSI DINAMIS ================= */
+let absenDinamisData=[];// {santri_id, nama, status, keterangan}
+let absenDinamisKelompokId=null;
+
 async function loadAbsensi(){
+  // Init: populate tipe dropdown + tanggal
+  const today=new Date().toISOString().slice(0,10);
+  if(!$('absensiTanggal').value)$('absensiTanggal').value=today;
+  // Populate tipe dropdown (once)
+  if($('absensiTipe').options.length<=1){
+    await loadKelompokTipes();
+    KELOMPOK_TIPES.forEach(t=>{
+      const o=document.createElement('option');o.value=t.value;o.textContent=t.label;$('absensiTipe').appendChild(o);
+    });
+  }
+  // Show placeholder
+  $('absensiStep2').style.display='none';
+  $('absensiStep3').style.display='none';
+  $('absensiPlaceholder').style.display='';
+  absenDinamisKelompokId=null;
+}
+async function absensiOnTipeChange(){
+  const tipe=$('absensiTipe').value;
+  $('absensiKelompok').innerHTML='<option value="">-- Pilih Kelompok --</option>';
+  $('absensiStep3').style.display='none';
+  $('absensiPlaceholder').style.display='';
+  if(!tipe){$('absensiStep2').style.display='none';return}
+  $('absensiStep2').style.display='';
+  // Fetch kelompok by tipe
+  const data=await api('/api/kelompok?tipe='+tipe);
+  if(!data)return;
+  if(tipe==='KEGIATAN'){
+    // Group by kegiatan_nama
+    const groups={};
+    data.forEach(k=>{
+      const key=k.kegiatan_nama||'Lainnya';
+      if(!groups[key])groups[key]=[];
+      groups[key].push(k);
+    });
+    Object.keys(groups).forEach(gName=>{
+      const optgroup=document.createElement('optgroup');optgroup.label='📚 '+gName;
+      groups[gName].forEach(k=>{
+        const o=document.createElement('option');o.value=k.id;o.textContent=k.nama+' ('+k.jumlah_anggota+' santri)';
+        optgroup.appendChild(o);
+      });
+      $('absensiKelompok').appendChild(optgroup);
+    });
+  }else{
+    data.forEach(k=>{
+      const o=document.createElement('option');o.value=k.id;o.textContent=k.nama+' ('+k.jumlah_anggota+' santri)';$('absensiKelompok').appendChild(o);
+    });
+  }
+}
+async function absensiOnKelompokChange(){
+  const kelompokId=$('absensiKelompok').value;
+  if(!kelompokId){$('absensiStep3').style.display='none';$('absensiPlaceholder').style.display='';return}
+  absenDinamisKelompokId=parseInt(kelompokId);
+  const tanggal=$('absensiTanggal').value||new Date().toISOString().slice(0,10);
+  // Fetch santri for this kelompok
+  const data=await api('/api/absensi/kelompok/'+absenDinamisKelompokId+'?tanggal='+tanggal);
+  if(!data||!data.santri){toast('Gagal load data');return}
+  if(!data.santri.length){toast('Kelompok ini belum punya anggota');return}
+  // Build absenDinamisData
+  absenDinamisData=data.santri.map(s=>({
+    santri_id:s.santri_id, nama:s.nama, kamar_id:s.kamar_id,
+    status:s.status||'', keterangan:s.keterangan||''
+  }));
+  $('absensiStep3').style.display='';
+  $('absensiPlaceholder').style.display='none';
+  renderAbsensiGridDinamis();
+  updateCounterDinamis();
+}
+function renderAbsensiGridDinamis(){
+  const q=($('searchSantri')?.value||'').toLowerCase();
+  const filtered=absenDinamisData.filter(s=>!q||s.nama.toLowerCase().includes(q));
+  if(!filtered.length){$('absensiGrid').innerHTML='<div style="text-align:center;padding:2rem;color:var(--text-muted)">Tidak ada santri</div>';return}
+  $('absensiGrid').innerHTML=filtered.map((s,i)=>{
+    const statusClass=s.status?'status-'+s.status.toLowerCase():'';
+    const row=s.status?s.status.toLowerCase():'';
+    return '<div class="santri-row '+row+'"><div class="santri-info"><div class="nama">'+s.nama+'</div></div><div class="status-buttons">'
+      +['H','I','S','A'].map(st=>{
+        const labels={H:'Hadir',I:'Izin',S:'Sakit',A:'Alpa'};
+        const icons={H:'✅',I:'📝',S:'🤒',A:'❌'};
+        return '<button class="status-btn status-'+st.toLowerCase()+' '+(s.status===st?'active':'')+'" onclick="setStatusDinamis('+s.santri_id+',\''+st+'\')">'+icons[st]+' '+labels[st]+'</button>';
+      }).join('')
+      +'</div><input class="keterangan-input" placeholder="Keterangan..." value="'+(s.keterangan||'')+'" onchange="setKeteranganDinamis('+s.santri_id+',this.value)"></div>';
+  }).join('');
+}
+function setStatusDinamis(santriId,status){
+  const s=absenDinamisData.find(x=>x.santri_id===santriId);
+  if(s)s.status=s.status===status?'':status;
+  renderAbsensiGridDinamis();
+  updateCounterDinamis();
+}
+function setKeteranganDinamis(santriId,val){
+  const s=absenDinamisData.find(x=>x.santri_id===santriId);
+  if(s)s.keterangan=val;
+}
+function semuaHadirDinamis(){absenDinamisData.forEach(s=>s.status='H');renderAbsensiGridDinamis();updateCounterDinamis()}
+function filterSantriDinamis(){renderAbsensiGridDinamis()}
+function updateCounterDinamis(){
+  const h=absenDinamisData.filter(s=>s.status==='H').length;
+  const i=absenDinamisData.filter(s=>s.status==='I').length;
+  const sk=absenDinamisData.filter(s=>s.status==='S').length;
+  const a=absenDinamisData.filter(s=>s.status==='A').length;
+  const t=absenDinamisData.length;
+  $('counterBar').innerHTML=
+    '<span class="counter-h">✅ Hadir: '+h+'</span>'+
+    '<span class="counter-i">📝 Izin: '+i+'</span>'+
+    '<span class="counter-s">🤒 Sakit: '+sk+'</span>'+
+    '<span class="counter-a">❌ Alpa: '+a+'</span>'+
+    '<span class="counter-total">📊 Total: '+t+'</span>';
+}
+async function simpanAbsensiDinamis(){
+  if(!absenDinamisKelompokId)return toast('Pilih kelompok dulu');
+  const tanggal=$('absensiTanggal').value||new Date().toISOString().slice(0,10);
+  const items=absenDinamisData.filter(s=>s.status).map(s=>({santri_id:s.santri_id,status:s.status,keterangan:s.keterangan||''}));
+  if(!items.length)return toast('Belum ada yang diabsen');
+  const res=await api('/api/absensi/bulk',{method:'POST',body:JSON.stringify({tanggal,kelompok_id:absenDinamisKelompokId,items})});
+  toast(res.message||'Tersimpan');
+  // Refresh
+  absensiOnKelompokChange();
+}
+/* ================= END PHASE 3: ABSENSI DINAMIS ================= */
+
+async function loadAbsensiLegacy(){
   const today=new Date().toISOString().slice(0,10);
   if(!$('absensiTanggal').value)$('absensiTanggal').value=today;
   const filterVal=$('absensiFilter').value;
@@ -2101,14 +2295,87 @@ async function loadSantri(){
 }
 function editSantri(id){api('/api/santri').then(data=>{const s=data.find(x=>x.id===id);if(s)showModal('santri',s)})}
 
-// Kamar CRUD
+// Kamar CRUD + Anggota Management
+let currentKamarId=null;
 async function loadKamar(){
   const data=await api('/api/kamar');
   if(!data)return;
   if($('btnTambahKamar'))$('btnTambahKamar').style.display=me.role==='admin'?'':'none';
-  $('kamarBody').innerHTML=data.map((k,i)=>'<tr><td>'+(i+1)+'</td><td>'+k.nama+'</td><td>'+k.kapasitas+'</td><td>'+(k.pengurus||'-')+'</td><td>'+(me.role==='admin'?'<button class="btn btn-outline btn-sm" onclick="editKamar('+k.id+')">✏️</button> <button class="btn btn-danger btn-sm" onclick="hapus(\'kamar\','+k.id+')">🗑️</button>':'')+'</td></tr>').join('');
+  // Count anggota per kamar
+  const santri=await api('/api/santri')||[];
+  const anggotaCount={};
+  santri.forEach(s=>{if(s.status==='aktif')anggotaCount[s.kamar_id]=(anggotaCount[s.kamar_id]||0)+1});
+  $('kamarBody').innerHTML=data.map((k,i)=>{
+    const count=anggotaCount[k.id]||0;
+    const anggotaBtn=me.role==='admin'?'<span style="cursor:pointer;color:var(--primary)" onclick="showKamarDetail('+k.id+',\''+k.nama.replace(/'/g,"\\'")+'\')">'+count+' santri</span>':''+count;
+    const actions=me.role==='admin'?'<button class="btn btn-outline btn-sm" onclick="editKamar('+k.id+')">✏️</button> <button class="btn btn-danger btn-sm" onclick="hapus(\'kamar\','+k.id+')">🗑️</button>':'';
+    return '<tr><td>'+(i+1)+'</td><td>'+k.nama+'</td><td>'+k.kapasitas+'</td><td>'+(k.pengurus||'-')+'</td><td>'+anggotaBtn+'</td><td>'+actions+'</td></tr>';
+  }).join('');
 }
 function editKamar(id){api('/api/kamar').then(data=>{const k=data.find(x=>x.id===id);if(k)showModal('kamar',k)})}
+
+async function showKamarDetail(id,nama){
+  currentKamarId=id;
+  $('kamarDetail').style.display='';
+  $('kamarDetailTitle').textContent='Anggota: '+nama;
+  await loadKamarAnggota();
+}
+function hideKamarDetail(){
+  currentKamarId=null;
+  $('kamarDetail').style.display='none';
+}
+async function loadKamarAnggota(){
+  if(!currentKamarId)return;
+  const data=await api('/api/santri?kamar_id='+currentKamarId);
+  if(!data||!data.length){$('kamarAnggotaBody').innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Belum ada anggota</td></tr>';return}
+  $('kamarAnggotaBody').innerHTML=data.filter(s=>s.status==='aktif').map((s,i)=>{
+    const statusBadge=s.status==='aktif'?'<span style="color:var(--green-ok)">✅ Aktif</span>':'<span style="color:var(--red)">❌ '+s.status+'</span>';
+    return '<tr><td>'+(i+1)+'</td><td>'+s.nama+'</td><td>'+statusBadge+'</td><td><button class="btn btn-danger btn-sm" onclick="pindahKamarSantri('+s.id+')">Pindah</button></td></tr>';
+  }).join('')||'<tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Belum ada anggota</td></tr>';
+}
+function filterBulkKamarList(){
+  const q=($('bulkKamarSearch').value||'').toLowerCase();
+  document.querySelectorAll('#bulkKamarSantriList label').forEach(el=>{
+    el.style.display=el.textContent.toLowerCase().includes(q)?'':'none';
+  });
+}
+async function showBulkAddKamar(){
+  if(!currentKamarId)return toast('Pilih kamar dulu');
+  const allSantri=await api('/api/santri')||[];
+  const available=allSantri.filter(s=>s.status==='aktif'&&s.kamar_id!==currentKamarId);
+  let html='<h3>Tambah Santri ke Kamar</h3>';
+  html+='<div style="margin-bottom:.5rem"><input type="text" id="bulkKamarSearch" placeholder="🔍 Cari nama santri..." oninput="filterBulkKamarList()" style="width:100%;padding:.5rem;border:1px solid var(--border);border-radius:8px;margin-bottom:.5rem"></div>';
+  html+='<div style="margin-bottom:.5rem"><label><input type="checkbox" id="bulkKamarSelectAll" onchange="document.querySelectorAll(\'.bulk-kamar-check\').forEach(c=>c.checked=this.checked)"> <b>Pilih Semua</b></label></div>';
+  html+='<div id="bulkKamarSantriList" style="max-height:400px;overflow-y:auto">';
+  if(!available.length){html+='<p style="color:var(--text-muted)">Semua santri sudah punya kamar.</p>';}
+  available.forEach(s=>{
+    html+='<label style="display:flex;align-items:center;gap:.5rem;padding:.4rem 0;border-bottom:1px solid var(--border)"><input type="checkbox" class="bulk-kamar-check" value="'+s.id+'"> '+s.nama+' <small style="color:#888">('+(s.kamar_nama||'belum ada kamar')+')</small></label>';
+  });
+  html+='</div>';
+  html+='<div style="display:flex;gap:.5rem;margin-top:1rem"><button class="btn btn-primary" onclick="bulkAddKamar()">Tambahkan</button><button class="btn btn-outline" onclick="closeModal()">Batal</button></div>';
+  $('modalContent').innerHTML=html;$('modalBg').classList.add('active');
+}
+async function bulkAddKamar(){
+  const ids=[...document.querySelectorAll('.bulk-kamar-check:checked')].map(c=>parseInt(c.value));
+  if(!ids.length)return toast('Pilih santri dulu');
+  for(const sid of ids){
+    await api('/api/santri/'+sid,{method:'PUT',body:JSON.stringify({kamar_id:currentKamarId})});
+  }
+  toast(ids.length+' santri dipindahkan');closeModal();loadKamarAnggota();loadKamar();
+}
+async function pindahKamarSantri(santriId){
+  const kamarList=await api('/api/kamar')||[];
+  const opts=kamarList.filter(k=>k.id!==currentKamarId).map(k=>'<option value="'+k.id+'">'+k.nama+'</option>').join('');
+  const html='<h3>Pindah Kamar</h3>'
+    +'<div class="form-group"><label>Pilih Kamar Tujuan</label><select id="mPindahKamar">'+opts+'</select></div>'
+    +'<button class="btn btn-primary" onclick="doPindahKamar('+santriId+')">Pindahkan</button><button class="btn btn-outline" onclick="closeModal()">Batal</button>';
+  $('modalContent').innerHTML=html;$('modalBg').classList.add('active');
+}
+async function doPindahKamar(santriId){
+  const kamarId=parseInt($('mPindahKamar').value);
+  await api('/api/santri/'+santriId,{method:'PUT',body:JSON.stringify({kamar_id:kamarId})});
+  toast('Santri dipindahkan');closeModal();loadKamarAnggota();loadKamar();
+}
 
 // Users CRUD
 async function loadUsers(){
@@ -2123,6 +2390,124 @@ async function loadKegiatan(){
   const data=await api('/api/kegiatan');
   if(!data)return;
   $('kegiatanBody').innerHTML=data.map((k,i)=>'<tr><td>'+(i+1)+'</td><td>'+k.nama+'</td><td>'+(k.kategori==='pokok'?'📘 Pokok':'📙 Tambahan')+'</td><td>'+(k.urutan_tampil||0)+'</td><td><button class="btn btn-sm btn-outline" onclick="showModal(\'kegiatan\',\''+encodeURIComponent(JSON.stringify(k))+'\')">✏️</button> <button class="btn btn-sm btn-danger" onclick="hapus(\'kegiatan\','+k.id+')">🗑️</button></td></tr>').join('')||'<tr><td colspan="5">Belum ada kegiatan</td></tr>';
+}
+
+/* ================= PHASE 1: KELOMPOK MASTER ================= */
+// KELOMPOK_TIPES now fetched dynamically from /api/kelompok-tipes
+let KELOMPOK_TIPES=[];
+async function loadKelompokTipes(){
+  if(KELOMPOK_TIPES.length)return KELOMPOK_TIPES;
+  const data=await api('/api/kelompok-tipes');
+  if(data)KELOMPOK_TIPES=data;
+  return KELOMPOK_TIPES;
+}
+let selectedKelompokTipe='';
+
+async function loadKelompok(){
+  await loadKelompokTipes();
+  // Build tabs
+  if(!$('kelompokTabs').innerHTML){
+    let tabs='<div class="kegiatan-tab '+(selectedKelompokTipe===''?'active':'')+'" onclick="selectKelompokTipe(\'\')">Semua</div>';
+    KELOMPOK_TIPES.forEach(t=>{
+      tabs+='<div class="kegiatan-tab '+(selectedKelompokTipe===t.value?'active':'')+'" onclick="selectKelompokTipe(\''+t.value+'\')">'+t.label+'</div>';
+    });
+    $('kelompokTabs').innerHTML=tabs;
+  }
+  // Fetch data
+  const url=selectedKelompokTipe?'/api/kelompok?tipe='+selectedKelompokTipe:'/api/kelompok';
+  const data=await api(url);
+  if(!data)return;
+  if($('btnTambahKelompok'))$('btnTambahKelompok').style.display=me.role==='admin'?'':'none';
+  renderKelompokTable(data);
+}
+function selectKelompokTipe(tipe){
+  selectedKelompokTipe=tipe;
+  $('kelompokTabs').innerHTML='';
+  loadKelompok();
+}
+function getTipeInfo(tipe){
+  return KELOMPOK_TIPES.find(t=>t.value===tipe)||{label:'📚 '+tipe,color:'#0d9488'};
+}
+function renderKelompokTable(data){
+  if(!data.length){$('kelompokBody').innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">Belum ada kelompok</td></tr>';return}
+  $('kelompokBody').innerHTML=data.map((k,i)=>{
+    const tipeInfo=getTipeInfo(k.tipe);
+    const tipeBadge='<span style="background:'+tipeInfo.color+'20;color:'+tipeInfo.color+';padding:2px 8px;border-radius:12px;font-size:.75rem;font-weight:600">'+tipeInfo.label+'</span>';
+    const anggotaCount=k.jumlah_anggota||0;
+    const anggotaBtn='<span style="cursor:pointer;color:var(--primary)" onclick="showKelompokDetail('+k.id+',\''+k.nama.replace(/'/g,"\\'")+'\')">'+anggotaCount+' santri</span>';
+    const kegiatanCol=k.tipe==='KEGIATAN'?(k.kegiatan_nama||'-'):(k.tipe);
+    const actions=me.role==='admin'?'<button class="btn btn-outline btn-sm" onclick="editKelompok('+k.id+')">✏️</button> <button class="btn btn-danger btn-sm" onclick="hapus(\'kelompok\','+k.id+')">🗑️</button>':'';
+    return '<tr><td>'+(i+1)+'</td><td>'+k.nama+'</td><td>'+kegiatanCol+'</td><td>'+tipeBadge+'</td><td>'+anggotaBtn+'</td><td>'+actions+'</td></tr>';
+  }).join('');
+}
+function editKelompok(id){api('/api/kelompok').then(data=>{const k=data.find(x=>x.id===id);if(k)showModal('kelompok',k)})}
+
+/* ================= PHASE 2: SANTRI_KELOMPOK (Detail Panel) ================= */
+let currentKelompokId=null;
+let currentKelompokNama='';
+async function showKelompokDetail(id,nama){
+  currentKelompokId=id;currentKelompokNama=nama;
+  $('kelompokDetail').style.display='';
+  $('kelompokDetailTitle').textContent='Anggota: '+nama;
+  await loadKelompokAnggota();
+}
+function hideKelompokDetail(){
+  currentKelompokId=null;
+  $('kelompokDetail').style.display='none';
+}
+async function loadKelompokAnggota(){
+  if(!currentKelompokId)return;
+  const data=await api('/api/santri-kelompok?kelompok_id='+currentKelompokId+'&status=aktif');
+  if(!data){$('kelompokAnggotaBody').innerHTML='';return}
+  if(!data.length){$('kelompokAnggotaBody').innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">Belum ada anggota</td></tr>';return}
+  $('kelompokAnggotaBody').innerHTML=data.map((sk,i)=>{
+    const tgl=sk.created_at?new Date(sk.created_at).toLocaleDateString('id-ID'):'-';
+    return '<tr><td>'+(i+1)+'</td><td>'+sk.santri_nama+'</td><td><span style="color:var(--green-ok)">✅ Aktif</span></td><td>'+tgl+'</td><td><button class="btn btn-danger btn-sm" onclick="deactivateAnggota('+sk.santri_id+','+sk.kelompok_id+')">Nonaktifkan</button></td></tr>';
+  }).join('');
+}
+async function deactivateAnggota(santriId,kelompokId){
+  if(!confirm('Nonaktifkan santri dari kelompok ini? History tetap tersimpan.'))return;
+  const res=await api('/api/santri-kelompok/deactivate',{method:'PUT',body:JSON.stringify({santri_id:santriId,kelompok_id:kelompokId})});
+  toast(res.message||'Di-nonaktifkan');loadKelompokAnggota();loadKelompok();
+}
+
+/* ================= PHASE 2: BULK ADD SANTRI ================= */
+function filterBulkList(){
+  const q=($('bulkSearch').value||'').toLowerCase();
+  document.querySelectorAll('#bulkSantriList label').forEach(el=>{
+    el.style.display=el.textContent.toLowerCase().includes(q)?'':'none';
+  });
+}
+async function showBulkAddModal(){
+  if(!currentKelompokId)return toast('Pilih kelompok dulu');
+  const allSantri=await api('/api/santri');
+  const anggota=await api('/api/santri-kelompok?kelompok_id='+currentKelompokId+'&status=aktif');
+  const anggotaIds=new Set((anggota||[]).map(a=>a.santri_id));
+  if(!allSantri)return toast('Gagal load santri');
+  const available=allSantri.filter(s=>s.status==='aktif'&&!anggotaIds.has(s.id));
+  let html='<h3>Tambah Santri ke '+currentKelompokNama+'</h3>';
+  html+='<div style="margin-bottom:.5rem"><input type="text" id="bulkSearch" placeholder="🔍 Cari nama santri..." oninput="filterBulkList()" style="width:100%;padding:.5rem;border:1px solid var(--border);border-radius:8px;margin-bottom:.5rem"></div>';
+  html+='<div style="margin-bottom:.5rem"><label><input type="checkbox" id="bulkSelectAll" onchange="toggleBulkSelect()"> <b>Pilih Semua</b></label></div>';
+  html+='<div id="bulkSantriList" style="max-height:400px;overflow-y:auto">';
+  if(!available.length){html+='<p style="color:var(--text-muted)">Semua santri sudah jadi anggota.</p>';}
+  available.forEach(s=>{
+    html+='<label style="display:flex;align-items:center;gap:.5rem;padding:.4rem 0;border-bottom:1px solid var(--border)"><input type="checkbox" class="bulk-check" value="'+s.id+'"> '+s.nama+'</label>';
+  });
+  html+='</div>';
+  html+='<div style="display:flex;gap:.5rem;margin-top:1rem"><button class="btn btn-primary" onclick="doBulkAdd()">Tambahkan</button><button class="btn btn-outline" onclick="closeModal()">Batal</button></div>';
+  $('modalContent').innerHTML=html;$('modalBg').classList.add('active');
+}
+function toggleBulkSelect(){
+  const all=document.getElementById('bulkSelectAll').checked;
+  document.querySelectorAll('#bulkSantriList label').forEach(el=>{
+    if(el.style.display!=='none')el.querySelector('.bulk-check').checked=all;
+  });
+}
+async function doBulkAdd(){
+  const ids=[...document.querySelectorAll('.bulk-check:checked')].map(c=>parseInt(c.value));
+  if(!ids.length)return toast('Pilih minimal 1 santri');
+  const res=await api('/api/santri-kelompok/bulk',{method:'POST',body:JSON.stringify({kelompok_id:currentKelompokId,santri_ids:ids})});
+  toast(res.message||'Ditambahkan');closeModal();loadKelompokAnggota();loadKelompok();
 }
 
 // Rekap - tab system like absensi
@@ -2190,16 +2575,76 @@ async function buildRekapFilter(){
     lbl.textContent='Filter: '+keg.nama;
   }
 }
-async function loadRekap(){
-  // Populate kegiatan tabs (first load)
-  if(!$('rekapTabs').innerHTML){
-    const kegiatanList=await api('/api/kegiatan');
-    if(kegiatanList&&kegiatanList.length){
-      if(!selectedRekapKegiatan)selectedRekapKegiatan=kegiatanList[0].id;
-      $('rekapTabs').innerHTML=kegiatanList.map(k=>'<div class="kegiatan-tab '+(k.id===selectedRekapKegiatan?'active':'')+'" onclick="selectRekapKegiatan('+k.id+')">'+k.nama+'</div>').join('')+'<div class="kegiatan-tab '+(selectedRekapKegiatan===ABSEN_MALAM_TAB?'active':'')+'" onclick="selectRekapKegiatan(ABSEN_MALAM_TAB)">🌙 Absen Malam</div>'+'<div class="kegiatan-tab '+(selectedRekapKegiatan===ABSEN_SEKOLAH_TAB?'active':'')+'" onclick="selectRekapKegiatan(ABSEN_SEKOLAH_TAB)">🏫 Absen Sekolah</div>';
-      await buildRekapFilter();
-    }
+/* ================= PHASE 4: REKAP DINAMIS ================= */
+async function initRekapTipeDropdown(){
+  if($('rekapTipe').options.length<=1){
+    await loadKelompokTipes();
+    KELOMPOK_TIPES.forEach(t=>{
+      const o=document.createElement('option');o.value=t.value;o.textContent=t.label;$('rekapTipe').appendChild(o);
+    });
   }
+}
+async function rekapOnTipeChange(){
+  // When tipe changes, show/hide kelompok dropdown and reload
+  const tipe=$('rekapTipe').value;
+  $('rekapTabs').style.display=tipe?'none':'';
+  $('rekapFilterArea').style.display='';
+  const kelompokSel=$('rekapKelompok');
+  if(tipe){
+    // Load kelompok for this tipe
+    const kelompok=await api('/api/kelompok?tipe='+tipe);
+    kelompokSel.innerHTML='<option value="">Semua Kelompok</option>';
+    if(kelompok){
+      if(tipe==='KEGIATAN'){
+        // Group by kegiatan_nama for tambahan
+        const groups={};
+        kelompok.forEach(k=>{const key=k.kegiatan_nama||'Lainnya';if(!groups[key])groups[key]=[];groups[key].push(k)});
+        Object.keys(groups).forEach(gName=>{
+          const optgroup=document.createElement('optgroup');optgroup.label='📋 '+gName;
+          groups[gName].forEach(k=>{const o=document.createElement('option');o.value=k.id;o.textContent=k.nama;optgroup.appendChild(o)});
+          kelompokSel.appendChild(optgroup);
+        });
+      }else{
+        kelompok.forEach(k=>{const o=document.createElement('option');o.value=k.id;o.textContent=k.nama;kelompokSel.appendChild(o)});
+      }
+    }
+    kelompokSel.style.display='';
+    // Hide old kegiatan-based filters
+    $('rekapKamar').style.display='none';
+    $('rekapKelas').style.display='none';
+    $('rekapFilter').style.display='none';
+    $('rekapFilterLabel').textContent='';
+  }else{
+    kelompokSel.style.display='none';
+    kelompokSel.innerHTML='<option value="">Semua Kelompok</option>';
+    $('rekapKamar').style.display='';
+  }
+  loadRekap();
+}
+
+async function loadRekap(){
+  await initRekapTipeDropdown();
+  const tipe=$('rekapTipe').value;
+  // If kelompok tipe selected, use unified API
+  if(tipe){
+    const dari=$('rekapDari').value;
+    const sampai=$('rekapSampai').value;
+    const kelompokId=$('rekapKelompok').value;
+    let url='/api/rekap?kelompok_tipe='+tipe;
+    if(dari)url+='&dari='+dari;
+    if(sampai)url+='&sampai='+sampai;
+    if(kelompokId)url+='&kelompok_id='+kelompokId;
+    const data=await api(url);
+    if(!data){$('rekapBody').innerHTML='';return}
+    const statusMap={H:'Hadir',I:'Izin',S:'Sakit',A:'Alpa'};
+    const statusColor={H:'var(--green-ok)',I:'var(--yellow)',S:'var(--blue)',A:'var(--red)'};
+    $('rekapBody').innerHTML=data.map(r=>{
+      const sc=statusColor[r.status]||'#888';
+      return '<tr><td>'+r.tanggal+'</td><td>'+r.nama+'</td><td>'+r.kamar_nama+'</td><td>'+(r.kelompok_nama||'-')+'</td><td><span style="color:'+sc+';font-weight:600">'+(statusMap[r.status]||r.status)+'</span></td><td>'+(r.keterangan||'-')+'</td></tr>';
+    }).join('')||'<tr><td colspan="6" style="text-align:center">Tidak ada data</td></tr>';
+    return;
+  }
+  // Otherwise, use old kegiatan-based system
   // Populate kamar dropdown
   if($('rekapKamar').options.length<=1){
     const kamar=await api('/api/kamar');
@@ -2292,33 +2737,70 @@ async function loadRekapUstadz(){
   if($('rekapUstadzSampai').value)params.set('sampai',$('rekapUstadzSampai').value);
   const data=await api('/api/rekap-ustadz?'+params);
   if(!data)return;
-  if(data.length===0){
-    $('rekapUstadzContent').innerHTML='<p style="text-align:center;color:#999;padding:2rem">Belum ada data absensi</p>';
+  // Also get all users (ustadz + admin) to show even those with no absensi
+  const allUsers=await api('/api/users')||[];
+  const ustadzUsers=allUsers.filter(u=>u.role==='ustadz'||u.role==='admin');
+  // Build a map from rekap data
+  const rekapMap={};
+  data.forEach(r=>{rekapMap[r.username]=r});
+  // Render cards
+  const cardColors=['#3b82f6','#0d9488','#8b5cf6','#ec4899','#f97316','#6366f1','#10b981','#ef4444'];
+  let cardsHtml='';
+  ustadzUsers.forEach((u,i)=>{
+    const r=rekapMap[u.username];
+    const sesi=r?r.total_sesi:0;
+    const days=r?r.aktif_days:0;
+    const color=cardColors[i%cardColors.length];
+    const statusDot=sesi>0?'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981;margin-right:4px"></span>':'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#ccc;margin-right:4px"></span>';
+    cardsHtml+='<div onclick="showUstadzDetail(\''+u.username+'\',\''+u.nama.replace(/'/g,"\\'")+'\')" style="background:#fff;border-radius:14px;padding:1rem;box-shadow:var(--shadow);cursor:pointer;border-left:4px solid '+color+';transition:transform .15s,box-shadow .15s" onmouseover="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 6px 20px rgba(0,0,0,0.12)\'" onmouseout="this.style.transform=\'\';this.style.boxShadow=\'var(--shadow)\'">';
+    cardsHtml+='<div style="font-size:1.8rem;margin-bottom:.4rem">'+(u.role==='admin'?'👑':'👨‍🏫')+'</div>';
+    cardsHtml+='<div style="font-weight:700;font-size:.95rem;margin-bottom:.2rem">'+u.nama+'</div>';
+    cardsHtml+='<div style="font-size:.75rem;color:var(--text-muted);margin-bottom:.5rem">@'+u.username+'</div>';
+    cardsHtml+='<div style="display:flex;justify-content:space-between;align-items:center">';
+    cardsHtml+='<div>'+statusDot+'<span style="font-size:.75rem;color:var(--text-muted)">'+sesi+' sesi</span></div>';
+    if(days>0)cardsHtml+='<div style="font-size:.7rem;color:var(--text-muted)">📅 '+days+' hari</div>';
+    cardsHtml+='</div>';
+    cardsHtml+='</div>';
+  });
+  $('ustadzCards').innerHTML=cardsHtml||'<p style="text-align:center;color:#999;padding:2rem;grid-column:1/-1">Belum ada ustadz terdaftar</p>';
+  // Reset detail
+  hideUstadzDetail();
+}
+
+let currentUstadzUsername='';
+async function showUstadzDetail(username,nama){
+  currentUstadzUsername=username;
+  $('ustadzDetail').style.display='';
+  $('ustadzDetailTitle').textContent='👨‍🏫 '+nama;
+  const params=new URLSearchParams();
+  if($('rekapUstadzDari').value)params.set('dari',$('rekapUstadzDari').value);
+  if($('rekapUstadzSampai').value)params.set('sampai',$('rekapUstadzSampai').value);
+  params.set('user_id',''); // We'll filter by username in frontend
+  // Get rekap data for this user
+  const allData=await api('/api/rekap-ustadz?'+params);
+  const userData=allData?allData.find(r=>r.username===username):null;
+  if(!userData||userData.total_sesi===0){
+    $('ustadzDetailContent').innerHTML='<p style="text-align:center;color:var(--text-muted);padding:1rem">Belum ada data absensi'+($('rekapUstadzDari').value?' di periode ini':'')+'</p>';
     return;
   }
-  let html='<div class="stats">';
-  html+='<div class="stat-card blue"><span class="icon">👨‍🏫</span><div class="num">'+data.length+'</div><div class="label">Total Ustadz/Aktif</div></div>';
-  const totalSesi=data.reduce((s,r)=>s+r.total_sesi,0);
-  html+='<div class="stat-card green"><span class="icon">📚</span><div class="num">'+totalSesi+'</div><div class="label">Total Sesi Mengajar</div></div>';
-  html+='</div>';
-  data.forEach((u,idx)=>{
-    html+='<div style="background:#fff;border-radius:14px;padding:1rem;margin-bottom:.8rem;box-shadow:var(--shadow)">';
-    html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">';
-    html+='<div><strong style="font-size:1rem">'+u.nama+'</strong> <span style="color:var(--text-muted);font-size:.8rem">@'+u.username+' ('+u.role+')</span></div>';
-    html+='<div style="text-align:right"><div style="font-size:1.3rem;font-weight:700;color:var(--primary)">'+u.total_sesi+'</div><div style="font-size:.7rem;color:var(--text-muted)">sesi mengajar</div></div>';
-    html+='</div>';
-    html+='<div style="font-size:.8rem;color:var(--text-muted);margin-bottom:.5rem">📅 Aktif '+u.aktif_days+' hari</div>';
-    // Per kegiatan breakdown (session count per kegiatan)
-    html+='<div style="display:flex;gap:.4rem;flex-wrap:wrap">';
-    Object.entries(u.per_kegiatan).forEach(([nama,count])=>{
-      html+='<div style="background:var(--bg-alt);border-radius:8px;padding:.4rem .6rem;font-size:.75rem">';
-      html+='<strong>'+nama+'</strong>: '+count+' sesi';
-      html+='</div>';
-    });
-    html+='</div>';
+  // Show per-kegiatan breakdown with detail
+  let html='<div style="margin-bottom:.8rem"><span style="font-size:1.3rem;font-weight:700;color:var(--primary)">'+userData.total_sesi+'</span> <span style="color:var(--text-muted)">total sesi mengajar</span> · <span style="color:var(--text-muted)">📅 Aktif '+userData.aktif_days+' hari</span></div>';
+  html+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:.6rem">';
+  const kegColors={'KAMAR':'#3b82f6','SEKOLAH':'#f97316','SOROGAN':'#8b5cf6','BAKAT':'#ec4899','SOROGAN_MALAM':'#6366f1','KEGIATAN':'#0d9488'};
+  Object.entries(userData.per_kegiatan).forEach(([nama,count])=>{
+    const bgColor=kegColors[nama]||'#0d9488';
+    html+='<div style="background:'+bgColor+'10;border:1px solid '+bgColor+'30;border-radius:10px;padding:.6rem .8rem">';
+    html+='<div style="font-weight:600;font-size:.85rem;margin-bottom:.2rem">'+nama+'</div>';
+    html+='<div style="font-size:1.2rem;font-weight:700;color:'+bgColor+'">'+count+'</div>';
+    html+='<div style="font-size:.7rem;color:var(--text-muted)">sesi</div>';
     html+='</div>';
   });
-  $('rekapUstadzContent').innerHTML=html;
+  html+='</div>';
+  $('ustadzDetailContent').innerHTML=html;
+}
+function hideUstadzDetail(){
+  currentUstadzUsername='';
+  $('ustadzDetail').style.display='none';
 }
 
 async function exportRekapUstadzPDF(){
@@ -2401,6 +2883,21 @@ async function showModal(type,editData){
     else if(editData)kd=editData;
     html='<h3>'+(kd?'Edit':'Tambah')+' Kegiatan</h3><div class="form-group"><label>Nama Kegiatan</label><input id="mNama" value="'+(kd?.nama||'')+'"></div><div class="form-group"><label>Kategori</label><select id="mKategori"><option value="pokok" '+(kd?.kategori==='pokok'?'selected':'')+'>Pokok</option><option value="tambahan" '+(kd?.kategori==='tambahan'?'selected':'')+'>Tambahan</option></select></div><div class="form-group"><label>Urutan Tampil</label><input type="number" id="mUrutanTampil" value="'+(kd?.urutan_tampil||0)+'" placeholder="0" style="width:80px"></div><button class="btn btn-primary" onclick="saveKegiatan('+(kd?.id||'')+')">Simpan</button><button class="btn btn-outline" onclick="closeModal()">Batal</button>';
     $('modalContent').innerHTML=html;$('modalBg').classList.add('active');
+  } else if(type==='kelompok'){
+    await loadKelompokTipes();
+    let tipeOpts=KELOMPOK_TIPES.map(t=>'<option value="'+t.value+'" '+(editData?.tipe===t.value?'selected':'')+'>'+t.label+'</option>').join('');
+    const showKegiatan=editData?.tipe==='KEGIATAN';
+    html='<h3>'+(editData?'Edit':'Tambah')+' Kelompok</h3>'
+      +'<div class="form-group"><label>Nama Sub-Grup</label><input id="mNama" value="'+(editData?.nama||'')+'" placeholder="Contoh: Kelas 1A, Kelompok B, Grup Sorogan"></div>'
+      +'<div class="form-group"><label>Tipe</label><select id="mTipe" onchange="kelompokTipeOnChange(this.value)">'+tipeOpts+'</select></div>'
+      +'<div class="form-group" id="mKegiatanGroup" style="'+(showKegiatan?'':'display:none')+'"><label>Kegiatan Tambahan</label><select id="mKegiatan"><option value="">-- Pilih Kegiatan Tambahan --</option></select></div>'
+      +'<button class="btn btn-primary" onclick="saveKelompok('+(editData?.id||'')+')">Simpan</button><button class="btn btn-outline" onclick="closeModal()">Batal</button>';
+    $('modalContent').innerHTML=html;$('modalBg').classList.add('active');
+    // Populate kegiatan dropdown if KEGIATAN selected
+    if(showKegiatan){
+      const kegList=await api('/api/kegiatan')||[];
+      kegList.filter(kg=>kg.kategori==='tambahan').forEach(kg=>{const o=document.createElement('option');o.value=kg.nama;o.textContent=kg.nama;if(editData?.kegiatan_nama===kg.nama)o.selected=true;$('mKegiatan').appendChild(o)});
+    }
   }
 }
 function closeModal(){$('modalBg').classList.remove('active')}
@@ -2452,6 +2949,40 @@ async function saveKegiatan(id){
   if(!body.nama)return toast('Nama wajib');
   const res=await api('/api/kegiatan'+(id?'/'+id:''),{method:id?'PUT':'POST',body:JSON.stringify(body)});
   toast(res.message||'Tersimpan');closeModal();loadKegiatan();
+  // Clear tipe cache + dropdowns so new kegiatan appears immediately
+  KELOMPOK_TIPES=[];
+  resetTipeDropdowns();
+}
+function resetTipeDropdowns(){
+  // Reset absensi tipe dropdown
+  const aSel=$('absensiTipe');if(aSel){while(aSel.options.length>1)aSel.remove(1)}
+  // Reset rekap tipe dropdown
+  const rSel=$('rekapTipe');if(rSel){while(rSel.options.length>1)rSel.remove(1)}
+  // Reset kelompok tabs
+  const kTabs=$('kelompokTabs');if(kTabs)kTabs.innerHTML='';
+}
+async function kelompokTipeOnChange(tipe){
+  const grp=$('mKegiatanGroup');
+  if(tipe==='KEGIATAN'){
+    grp.style.display='';
+    // Populate if empty (only tambahan kegiatan)
+    if($('mKegiatan').options.length<=1){
+      const kegList=await api('/api/kegiatan')||[];
+      kegList.filter(kg=>kg.kategori==='tambahan').forEach(kg=>{const o=document.createElement('option');o.value=kg.nama;o.textContent=kg.nama;$('mKegiatan').appendChild(o)});
+    }
+  }else{
+    grp.style.display='none';
+  }
+}
+async function saveKelompok(id){
+  const body={nama:$('mNama').value,tipe:$('mTipe').value};
+  if(!body.nama)return toast('Nama wajib');
+  if(body.tipe==='KEGIATAN'){
+    body.kegiatan_nama=$('mKegiatan').value||null;
+    if(!body.kegiatan_nama)return toast('Pilih kegiatan dulu');
+  }
+  const res=await api('/api/kelompok'+(id?'/'+id:''),{method:id?'PUT':'POST',body:JSON.stringify(body)});
+  toast(res.message||'Tersimpan');closeModal();loadKelompok();
 }
 async function hapus(type,id){
   if(!confirm('Yakin hapus?'))return;
@@ -2459,7 +2990,8 @@ async function hapus(type,id){
   toast(res.message||'Dihapus');
   if(type==='santri')loadSantri();
   if(type==='kamar')loadKamar();
-  if(type==='kegiatan')loadKegiatan();
+  if(type==='kegiatan'){loadKegiatan();KELOMPOK_TIPES=[];resetTipeDropdowns();}
+  if(type==='kelompok'){hideKelompokDetail();loadKelompok();}
   if(type==='users')loadUsers();
   if(type==='pengumuman')loadPengumuman();
 }
