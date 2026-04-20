@@ -1382,6 +1382,30 @@ tr:hover{background:var(--bg)}
       </div>
     </div>
 
+    <!-- KELAS SEKOLAH -->
+    <div class="page" id="page-kelas-sekolah">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem">
+        <h3 class="section-title" style="margin:0">Kelola Kelas Sekolah</h3>
+        <button class="btn btn-primary btn-sm" onclick="showModal('kelas-sekolah')" id="btnTambahKelas">+ Tambah</button>
+      </div>
+      <div class="table-wrap"><table><thead><tr><th>No</th><th>Nama Kelas</th><th>Jumlah Santri</th><th>Aksi</th></tr></thead><tbody id="kelasBody"></tbody></table></div>
+      <!-- Detail anggota kelas -->
+      <div id="kelasDetail" style="display:none;margin-top:1rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">
+          <h4 id="kelasDetailTitle" style="margin:0"></h4>
+          <div style="display:flex;gap:.5rem">
+            <button class="btn btn-primary btn-sm" onclick="showBulkAddKelas()">+ Tambah Santri</button>
+            <button class="btn btn-outline btn-sm" onclick="hideKelasDetail()">✕ Tutup</button>
+          </div>
+        </div>
+        <div class="table-wrap"><table><thead><tr><th><input type="checkbox" id="kelasSelectAll" onchange="toggleKelasSelect()"></th><th>No</th><th>Nama</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="kelasAnggotaBody"></tbody></table></div>
+        <div style="margin-top:.6rem;display:flex;gap:.5rem;align-items:center">
+          <select id="kelasPindahTujuan" style="padding:.4rem .6rem;border:1.5px solid var(--border);border-radius:8px;font-size:.8rem"><option value="">Pilih Kelas Tujuan</option></select>
+          <button class="btn btn-primary btn-sm" onclick="pindahKelasMassal()" style="width:auto">📦 Pindahkan Terpilih</button>
+        </div>
+      </div>
+    </div>
+
     <!-- KEGIATAN -->
     <div class="page" id="page-kegiatan">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem">
@@ -1756,6 +1780,7 @@ function buildNav(){
     {id:'santri',icon:'👨‍🎓',label:'Data Santri'},
     {id:'kelompok',icon:'🏷️',label:'Kelola Kelompok'},
     {id:'kamar',icon:'🏠',label:'Kelola Kamar'},
+    {id:'kelas-sekolah',icon:'🏫',label:'Kelola Kelas'},
     {id:'kegiatan',icon:'📚',label:'Kelola Kegiatan'},
     {id:'users',icon:'👥',label:'Kelola Pengguna'},
     {id:'rekap',icon:'📋',label:'Rekap Absensi'},
@@ -1809,6 +1834,7 @@ function buildGridMenu(){
       {id:'santri',icon:'👨‍🎓',label:'Data Santri'},
       {id:'kelompok',icon:'🏷️',label:'Kelompok'},
       {id:'kamar',icon:'🏠',label:'Kelola Kamar'},
+      {id:'kelas-sekolah',icon:'🏫',label:'Kelola Kelas'},
       {id:'kegiatan',icon:'📚',label:'Kegiatan'},
       {id:'users',icon:'👥',label:'Pengguna'},
       {id:'sensus',icon:'📊',label:'Sensus'},
@@ -1927,6 +1953,7 @@ function loadPageData(page){
   if(page==='santri')loadSantri();
   if(page==='kelompok')loadKelompok();
   if(page==='kamar')loadKamar();
+  if(page==='kelas-sekolah')loadKelasSekolah();
   if(page==='kegiatan')loadKegiatan();
   if(page==='users')loadUsers();
   if(page==='rekap')loadRekap();
@@ -2504,15 +2531,13 @@ async function loadAbsenSekolah(){
   if(!$('sekolahTanggal').value)$('sekolahTanggal').value=today;
   const tanggal=$('sekolahTanggal').value;
   const kelasFilter=$('sekolahKelas').value;
-  // Always fetch all santri first for filter population + auto-sync
-  const allSantri=await api('/api/santri');
-  if(!allSantri)return;
-  // Refresh kelas filter dropdown from santri data
+  // Populate kelas dropdown from master data
+  const kelasMaster=await api('/api/kelas-sekolah')||[];
   const savedVal=$('sekolahKelas').value;
   $('sekolahKelas').innerHTML='<option value="">Semua Kelas</option>';
-  const kelasSet=new Set(allSantri.map(s=>s.kelas_sekolah).filter(Boolean));
-  [...kelasSet].sort().forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=k;if(k===savedVal)o.selected=true;$('sekolahKelas').appendChild(o)});
-  // Filter santri by kelas if selected
+  kelasMaster.forEach(k=>{const o=document.createElement('option');o.value=k.nama;o.textContent=k.nama;if(k.nama===savedVal)o.selected=true;$('sekolahKelas').appendChild(o)});
+  // Fetch santri by kelas
+  let allSantri=await api('/api/santri')||[];
   let santri=allSantri;
   if(kelasFilter)santri=allSantri.filter(s=>s.kelas_sekolah===kelasFilter);
   // Ambil data absen sekolah dari tabel terpisah
@@ -2662,6 +2687,110 @@ async function doPindahKamar(santriId){
   const kamarId=parseInt($('mPindahKamar').value);
   await api('/api/santri/'+santriId,{method:'PUT',body:JSON.stringify({kamar_id:kamarId})});
   toast('Santri dipindahkan');closeModal();loadKamarAnggota();loadKamar();
+}
+
+// Kelas Sekolah CRUD + Anggota Management
+let currentKelasNama=null;
+async function loadKelasSekolah(){
+  const data=await api('/api/kelas-sekolah');
+  if(!data)return;
+  if($('btnTambahKelas'))$('btnTambahKelas').style.display=me.role==='admin'?'':'none';
+  $('kelasBody').innerHTML=data.map((k,i)=>{
+    const anggotaBtn=me.role==='admin'?'<span style="cursor:pointer;color:var(--primary)" onclick="showKelasDetail(\''+k.nama.replace(/'/g,"\\'")+'\')">'+k.jumlah_santri+' santri</span>':''+k.jumlah_santri;
+    const actions=me.role==='admin'?'<button class="btn btn-outline btn-sm" onclick="editKelasSekolah('+k.id+')">✏️</button> <button class="btn btn-danger btn-sm" onclick="hapusKelasSekolah('+k.id+')">🗑️</button>':'';
+    return '<tr><td>'+(i+1)+'</td><td>'+k.nama+'</td><td>'+anggotaBtn+'</td><td>'+actions+'</td></tr>';
+  }).join('');
+}
+function editKelasSekolah(id){
+  api('/api/kelas-sekolah').then(data=>{
+    const k=data.find(x=>x.id===id);
+    if(k){
+      const html='<h3>Edit Kelas</h3><div class="form-group"><label>Nama Kelas</label><input id="mNama" value="'+k.nama+'"></div><button class="btn btn-primary" onclick="saveKelasSekolah('+k.id+')">Simpan</button><button class="btn btn-outline" onclick="closeModal()">Batal</button>';
+      $('modalContent').innerHTML=html;$('modalBg').classList.add('active');
+    }
+  });
+}
+async function hapusKelasSekolah(id){
+  if(!confirm('Yakin hapus kelas ini?\nSantri di kelas ini akan dikosongkan kelas_sekolah-nya.'))return;
+  const res=await api('/api/kelas-sekolah/'+id,{method:'DELETE'});
+  toast(res.message||'Dihapus');loadKelasSekolah();
+}
+async function saveKelasSekolah(id){
+  const nama=$('mNama').value;
+  if(!nama)return toast('Nama wajib');
+  const res=await api('/api/kelas-sekolah'+(id?'/'+id:''),{method:id?'PUT':'POST',body:JSON.stringify({nama})});
+  toast(res.message||'Tersimpan');closeModal();loadKelasSekolah();
+}
+
+async function showKelasDetail(nama){
+  currentKelasNama=nama;
+  $('kelasDetail').style.display='';
+  $('kelasDetailTitle').textContent='🏫 Kelas '+nama;
+  await loadKelasAnggota();
+  // Populate pindah tujuan dropdown
+  const kelas=await api('/api/kelas-sekolah')||[];
+  const sel=$('kelasPindahTujuan');
+  sel.innerHTML='<option value="">Pilih Kelas Tujuan</option>';
+  kelas.filter(k=>k.nama!==nama).forEach(k=>{const o=document.createElement('option');o.value=k.nama;o.textContent=k.nama;sel.appendChild(o)});
+}
+function hideKelasDetail(){
+  currentKelasNama=null;
+  $('kelasDetail').style.display='none';
+}
+async function loadKelasAnggota(){
+  if(!currentKelasNama)return;
+  const data=await api('/api/santri?kelas_sekolah='+encodeURIComponent(currentKelasNama));
+  if(!data||!data.length){$('kelasAnggotaBody').innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">Belum ada anggota</td></tr>';return}
+  $('kelasAnggotaBody').innerHTML=data.filter(s=>s.status==='aktif').map((s,i)=>{
+    return '<tr><td><input type="checkbox" class="kelas-check" value="'+s.id+'"></td><td>'+(i+1)+'</td><td>'+s.nama+'</td><td><span style="color:var(--green-ok)">✅ Aktif</span></td><td><button class="btn btn-danger btn-sm" onclick="pindahKelasSatu('+s.id+')">Pindah</button></td></tr>';
+  }).join('');
+}
+function toggleKelasSelect(){
+  const all=$('kelasSelectAll').checked;
+  document.querySelectorAll('.kelas-check').forEach(c=>c.checked=all);
+}
+async function pindahKelasSatu(santriId){
+  const kelas=await api('/api/kelas-sekolah')||[];
+  const opts=kelas.filter(k=>k.nama!==currentKelasNama).map(k=>'<option value="'+k.nama+'">'+k.nama+'</option>').join('');
+  const html='<h3>Pindah Kelas</h3><div class="form-group"><label>Pilih Kelas Tujuan</label><select id="mPindahKelas">'+opts+'</select></div><button class="btn btn-primary" onclick="doPindahKelas('+santriId+')">Pindahkan</button><button class="btn btn-outline" onclick="closeModal()">Batal</button>';
+  $('modalContent').innerHTML=html;$('modalBg').classList.add('active');
+}
+async function doPindahKelas(santriId){
+  const kelasNama=$('mPindahKelas').value;
+  await api('/api/kelas-sekolah/pindah',{method:'POST',body:JSON.stringify({santri_ids:[santriId],kelas_nama:kelasNama})});
+  toast('Santri dipindahkan');closeModal();loadKelasAnggota();loadKelasSekolah();
+}
+async function showBulkAddKelas(){
+  if(!currentKelasNama)return toast('Pilih kelas dulu');
+  const allSantri=await api('/api/santri')||[];
+  const available=allSantri.filter(s=>s.status==='aktif'&&s.kelas_sekolah!==currentKelasNama);
+  let html='<h3>Tambah Santri ke Kelas '+currentKelasNama+'</h3>';
+  html+='<div style="margin-bottom:.5rem"><input type="text" id="bulkKelasSearch" placeholder="🔍 Cari nama..." oninput="filterBulkKelasList()" style="width:100%;padding:.5rem;border:1px solid var(--border);border-radius:8px;margin-bottom:.5rem"></div>';
+  html+='<div style="margin-bottom:.5rem"><label><input type="checkbox" id="bulkKelasSelectAll" onchange="document.querySelectorAll(\'.bulk-kelas-check\').forEach(c=>c.checked=this.checked)"> <b>Pilih Semua</b></label></div>';
+  html+='<div id="bulkKelasSantriList" style="max-height:400px;overflow-y:auto">';
+  available.forEach(s=>{
+    html+='<label style="display:flex;align-items:center;gap:.5rem;padding:.4rem 0;border-bottom:1px solid var(--border)"><input type="checkbox" class="bulk-kelas-check" value="'+s.id+'"> '+s.nama+' <small style="color:#888">('+(s.kelas_sekolah||'belum ada kelas')+')</small></label>';
+  });
+  html+='</div><div style="display:flex;gap:.5rem;margin-top:1rem"><button class="btn btn-primary" onclick="bulkAddKelas()">Tambahkan</button><button class="btn btn-outline" onclick="closeModal()">Batal</button></div>';
+  $('modalContent').innerHTML=html;$('modalBg').classList.add('active');
+}
+function filterBulkKelasList(){
+  const q=($('bulkKelasSearch').value||'').toLowerCase();
+  document.querySelectorAll('#bulkKelasSantriList label').forEach(el=>{el.style.display=el.textContent.toLowerCase().includes(q)?'':'none'});
+}
+async function bulkAddKelas(){
+  const ids=[...document.querySelectorAll('.bulk-kelas-check:checked')].map(c=>parseInt(c.value));
+  if(!ids.length)return toast('Pilih santri dulu');
+  await api('/api/kelas-sekolah/pindah',{method:'POST',body:JSON.stringify({santri_ids:ids,kelas_nama:currentKelasNama})});
+  toast(ids.length+' santri ditambahkan');closeModal();loadKelasAnggota();loadKelasSekolah();
+}
+async function pindahKelasMassal(){
+  const ids=[...document.querySelectorAll('.kelas-check:checked')].map(c=>parseInt(c.value));
+  if(!ids.length)return toast('Pilih santri dulu');
+  const tujuan=$('kelasPindahTujuan').value;
+  if(!tujuan)return toast('Pilih kelas tujuan');
+  await api('/api/kelas-sekolah/pindah',{method:'POST',body:JSON.stringify({santri_ids:ids,kelas_nama:tujuan})});
+  toast(ids.length+' santri dipindahkan ke '+tujuan);loadKelasAnggota();loadKelasSekolah();
 }
 
 // Users CRUD
@@ -3166,6 +3295,9 @@ async function showModal(type,editData){
     html='<h3>'+(ct?'Edit':'Tambah')+' Catatan Guru</h3><div class="form-group"><label>Tanggal</label><input type="date" id="mCatTanggal" value="'+(ct?.tanggal||new Date().toISOString().slice(0,10))+'"></div><div class="form-group"><label>Santri</label><select id="mCatSantri"></select></div><div class="form-group"><label>Kategori</label><select id="mCatKategori"><option value="perilaku" '+(ct?.kategori==='perilaku'?'selected':'')+'>Perilaku</option><option value="akademik" '+(ct?.kategori==='akademik'?'selected':'')+'>Akademik</option><option value="kesehatan" '+(ct?.kategori==='kesehatan'?'selected':'')+'>Kesehatan</option><option value="lainnya" '+(ct?.kategori==='lainnya'||!ct?'selected':'')+'>Lainnya</option></select></div><div class="form-group"><label>Judul (opsional)</label><input id="mCatJudul" value="'+(ct?.judul||'')+'" placeholder="Contoh: Perkembangan Hafalan"></div><div class="form-group"><label>Isi Catatan</label><textarea id="mCatIsi" rows="4" placeholder="Tulis catatan tentang santri...">'+(ct?.isi||'')+'</textarea></div><button class="btn btn-primary" onclick="saveCatatan('+(ct?.id||'')+')">Simpan</button><button class="btn btn-outline" onclick="closeModal()">Batal</button>';
     $('modalContent').innerHTML=html;$('modalBg').classList.add('active');
     api('/api/santri').then(data=>{if(data)data.forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=s.nama;if(ct?.santri_id===s.id)o.selected=true;$('mCatSantri').appendChild(o)})});
+  } else if(type==='kelas-sekolah'){
+    html='<h3>Tambah Kelas</h3><div class="form-group"><label>Nama Kelas</label><input id="mNama" placeholder="Contoh: 7A, 8B, 9"></div><button class="btn btn-primary" onclick="saveKelasSekolah()">Simpan</button><button class="btn btn-outline" onclick="closeModal()">Batal</button>';
+    $('modalContent').innerHTML=html;$('modalBg').classList.add('active');
   } else if(type==='kegiatan'){
     let kd=null;
     if(editData&&typeof editData==='string')try{kd=JSON.parse(decodeURIComponent(editData))}catch(e){}

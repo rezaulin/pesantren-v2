@@ -27,9 +27,14 @@ function loadDB() {
     if (!data.kelompok) data.kelompok = [];
     if (!data.santri_kelompok) data.santri_kelompok = [];
     if (!data.absensi_sesi) data.absensi_sesi = [];
+    if (!data.kelas_sekolah) {
+      // Auto-seed from existing santri data
+      const kelasSet = new Set(data.santri.map(s => s.kelas_sekolah).filter(Boolean));
+      data.kelas_sekolah = [...kelasSet].sort().map((nama, i) => ({ id: i + 1, nama, created_at: new Date().toISOString() }));
+    }
     return data;
   }
-  return { users: [], kamar: [], santri: [], absensi: [], absen_malam: [], absen_sekolah: [], absensi_sesi: [], pengumuman: [], kegiatan: [], kelompok: [], santri_kelompok: [] };
+  return { users: [], kamar: [], kelas_sekolah: [], santri: [], absensi: [], absen_malam: [], absen_sekolah: [], absensi_sesi: [], pengumuman: [], kegiatan: [], kelompok: [], santri_kelompok: [] };
 }
 function saveDB(data) { fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2)); }
 function nextId(arr) { return arr.length ? Math.max(...arr.map(x => x.id)) + 1 : 1; }
@@ -241,6 +246,56 @@ app.put('/api/kamar/:id', authenticate, requireAdmin, (req, res) => {
 app.delete('/api/kamar/:id', authenticate, requireAdmin, (req, res) => {
   db.kamar = db.kamar.filter(k => k.id != req.params.id); saveDB(db);
   res.json({ message: 'Kamar dihapus' });
+});
+
+// ── Kelas Sekolah ────────────────────────────────────────
+app.get('/api/kelas-sekolah', authenticate, (req, res) => {
+  if (!db.kelas_sekolah) db.kelas_sekolah = [];
+  res.json(db.kelas_sekolah.map(k => ({
+    ...k, jumlah_santri: db.santri.filter(s => s.kelas_sekolah === k.nama && s.status === 'aktif').length
+  })));
+});
+app.post('/api/kelas-sekolah', authenticate, requireAdmin, (req, res) => {
+  const { nama } = req.body;
+  if (!nama) return res.status(400).json({ message: 'Nama kelas wajib' });
+  if (!db.kelas_sekolah) db.kelas_sekolah = [];
+  if (db.kelas_sekolah.find(k => k.nama.toLowerCase() === nama.toLowerCase())) {
+    return res.status(400).json({ message: 'Kelas sudah ada' });
+  }
+  const k = { id: nextId(db.kelas_sekolah), nama, created_at: new Date().toISOString() };
+  db.kelas_sekolah.push(k); saveDB(db); res.json(k);
+});
+app.put('/api/kelas-sekolah/:id', authenticate, requireAdmin, (req, res) => {
+  if (!db.kelas_sekolah) db.kelas_sekolah = [];
+  const k = db.kelas_sekolah.find(x => x.id == req.params.id);
+  if (!k) return res.status(404).json({ message: 'Kelas tidak ditemukan' });
+  const oldNama = k.nama;
+  Object.assign(k, req.body);
+  // Update all santri with old kelas_sekolah
+  if (req.body.nama && req.body.nama !== oldNama) {
+    db.santri.forEach(s => { if (s.kelas_sekolah === oldNama) s.kelas_sekolah = req.body.nama; });
+  }
+  saveDB(db); res.json({ message: 'Kelas diupdate' });
+});
+app.delete('/api/kelas-sekolah/:id', authenticate, requireAdmin, (req, res) => {
+  if (!db.kelas_sekolah) db.kelas_sekolah = [];
+  const k = db.kelas_sekolah.find(x => x.id == req.params.id);
+  if (k) {
+    // Clear kelas_sekolah from santri
+    db.santri.forEach(s => { if (s.kelas_sekolah === k.nama) s.kelas_sekolah = ''; });
+    db.kelas_sekolah = db.kelas_sekolah.filter(x => x.id != req.params.id);
+  }
+  saveDB(db); res.json({ message: 'Kelas dihapus' });
+});
+app.post('/api/kelas-sekolah/pindah', authenticate, requireAdmin, (req, res) => {
+  const { santri_ids, kelas_nama } = req.body;
+  if (!santri_ids || !santri_ids.length) return res.status(400).json({ message: 'Pilih santri dulu' });
+  let count = 0;
+  santri_ids.forEach(sid => {
+    const s = db.santri.find(x => x.id === sid);
+    if (s) { s.kelas_sekolah = kelas_nama || ''; count++; }
+  });
+  saveDB(db); res.json({ message: count + ' santri dipindahkan ke ' + (kelas_nama || '-') });
 });
 
 // ── Santri ─────────────────────────────────────────────
