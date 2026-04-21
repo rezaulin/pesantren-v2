@@ -11,6 +11,9 @@
 <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192">
 <link rel="apple-touch-icon" href="/icon-192.png">
 <link rel="manifest" href="/manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400;1,700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 /* ==============================
    FAONSI - Modern Pesantren Absensi
@@ -20,14 +23,19 @@
 *{margin:0;padding:0;box-sizing:border-box}
 
 :root{
+  --font-display:"Amiri","Times New Roman",serif;
+  --font-sans:"Plus Jakarta Sans","Inter","Segoe UI",system-ui,sans-serif;
   --primary:#0d9488;
   --primary-dark:#0f766e;
   --primary-light:#14b8a6;
+  --primary-glow:#2dd4bf;
   --primary-bg:#ccfbf1;
   --secondary:#0f172a;
   --secondary-light:#1e293b;
   --accent:#f97316;
   --accent-dark:#ea580c;
+  --gold:#d97706;
+  --gold-light:#f59e0b;
   --bg:#f0f4f8;
   --bg-alt:#e8eef3;
   --card:#ffffff;
@@ -43,11 +51,15 @@
   --yellow-bg:#fefce8;
   --green-ok:#22c55e;
   --green-ok-bg:#f0fdf4;
-  --gradient-primary:linear-gradient(135deg,#0d9488 0%,#06b6d4 50%,#3b82f6 100%);
+  --gradient-primary:linear-gradient(135deg,#0d9488,#2dd4bf);
+  --gradient-gold:linear-gradient(135deg,#d97706,#f59e0b);
   --gradient-dark:linear-gradient(135deg,#0f172a 0%,#1e3a5f 50%,#0f766e 100%);
   --gradient-accent:linear-gradient(135deg,#f97316 0%,#ef4444 100%);
   --gradient-card:linear-gradient(145deg,#ffffff 0%,#f8fafc 100%);
   --shadow-sm:0 1px 3px rgba(15,23,42,.06),0 1px 2px rgba(15,23,42,.04);
+  --shadow-soft:0 2px 12px -4px rgba(13,148,136,.08);
+  --shadow-elegant:0 12px 32px -16px rgba(13,148,136,.18);
+  --shadow-gold:0 8px 24px -8px rgba(217,119,6,.35);
   --shadow:0 4px 6px -1px rgba(15,23,42,.07),0 2px 4px -2px rgba(15,23,42,.05);
   --shadow-md:0 10px 15px -3px rgba(15,23,42,.08),0 4px 6px -4px rgba(15,23,42,.04);
   --shadow-lg:0 20px 25px -5px rgba(15,23,42,.1),0 8px 10px -6px rgba(15,23,42,.06);
@@ -71,10 +83,14 @@
   --text-muted:#94a3b8;
   --border:#334155;
   --shadow-sm:0 1px 3px rgba(0,0,0,.3),0 1px 2px rgba(0,0,0,.2);
+  --shadow-soft:0 2px 12px -4px rgba(45,212,191,.06);
+  --shadow-elegant:0 12px 32px -16px rgba(45,212,191,.12);
+  --shadow-gold:0 8px 24px -8px rgba(217,119,6,.25);
   --shadow:0 4px 6px -1px rgba(0,0,0,.3),0 2px 4px -2px rgba(0,0,0,.2);
   --shadow-md:0 10px 15px -3px rgba(0,0,0,.35),0 4px 6px -4px rgba(0,0,0,.2);
   --shadow-lg:0 20px 25px -5px rgba(0,0,0,.4),0 8px 10px -6px rgba(0,0,0,.3);
   --shadow-xl:0 25px 50px -12px rgba(0,0,0,.5);
+  --shadow-glow:0 0 20px rgba(45,212,191,.1);
 }
 .dark body{background:#0f172a;color:#e2e8f0}
 
@@ -213,15 +229,57 @@
 .dark-toggle:hover{background:rgba(255,255,255,.1);transform:scale(1.05)}
 
 body{
-  font-family:'Inter','Segoe UI',system-ui,-apple-system,sans-serif;
+  font-family:var(--font-sans);
+  font-feature-settings:"cv02","cv03","cv04","cv11";
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
   background:var(--bg);
   color:var(--text);
   min-height:100vh;
   padding-bottom:68px;
-  -webkit-font-smoothing:antialiased;
-  -moz-osx-font-smoothing:grayscale;
 }
 a{color:inherit;text-decoration:none}
+
+/* ============================
+   TYPOGRAPHY (Amiri heading)
+   ============================ */
+h1,h2,h3,.font-display{font-family:var(--font-display);letter-spacing:-.01em}
+h4,h5,h6,.font-heading{font-family:var(--font-sans);font-weight:600}
+
+/* ============================
+   ISLAMIC PATTERN BG
+   ============================ */
+.bg-pattern{
+  background-image:
+    radial-gradient(circle at 1px 1px,rgba(13,148,136,.06) 1px,transparent 0),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cg fill='none' stroke='%230F766E' stroke-opacity='0.06' stroke-width='1'%3E%3Cpath d='M30 0 L60 30 L30 60 L0 30 Z'/%3E%3Cpath d='M30 10 L50 30 L30 50 L10 30 Z'/%3E%3Ccircle cx='30' cy='30' r='8'/%3E%3C/g%3E%3C/svg%3E");
+  background-size:24px 24px,60px 60px;
+}
+.dark .bg-pattern{
+  background-image:
+    radial-gradient(circle at 1px 1px,rgba(45,212,191,.04) 1px,transparent 0),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cg fill='none' stroke='%232dd4bf' stroke-opacity='0.04' stroke-width='1'%3E%3Cpath d='M30 0 L60 30 L30 60 L0 30 Z'/%3E%3Cpath d='M30 10 L50 30 L30 50 L10 30 Z'/%3E%3Ccircle cx='30' cy='30' r='8'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* ============================
+   CARD POLISH
+   ============================ */
+.stat-card{
+  border-radius:var(--radius-lg);
+  box-shadow:var(--shadow-soft);
+  transition:transform .2s,box-shadow .2s;
+}
+.stat-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-elegant)}
+
+.menu-item{
+  border-radius:var(--radius-lg);
+  box-shadow:var(--shadow-sm);
+  transition:transform .2s,box-shadow .2s,border-color .2s;
+}
+.menu-item:hover{transform:translateY(-2px);box-shadow:var(--shadow-elegant)}
+
+/* Gold badge style */
+.badge-gold{background:var(--gradient-gold);color:#fff;border-radius:var(--radius-full);padding:2px 10px;font-size:.75rem;font-weight:600}
 
 /* ============================
    LOGIN
@@ -272,6 +330,7 @@ a{color:inherit;text-decoration:none}
   to{opacity:1;transform:translateY(0) scale(1)}
 }
 .login-box h1{
+  font-family:var(--font-display);
   background:var(--gradient-primary);
   -webkit-background-clip:text;
   -webkit-text-fill-color:transparent;
@@ -279,7 +338,7 @@ a{color:inherit;text-decoration:none}
   text-align:center;
   margin-bottom:.25rem;
   font-size:1.85rem;
-  font-weight:800;
+  font-weight:700;
   letter-spacing:-.5px;
 }
 .login-box p{
@@ -425,7 +484,7 @@ a{color:inherit;text-decoration:none}
   color:#fff;padding:1.3rem;
   display:flex;justify-content:space-between;align-items:center;
 }
-.sidebar-header h3{font-size:1.1rem;font-weight:700;letter-spacing:.3px}
+.sidebar-header h3{font-family:var(--font-display);font-size:1.15rem;font-weight:700;letter-spacing:.3px}
 .sidebar-header button{background:none;border:none;color:#fff;font-size:1.2rem;cursor:pointer;opacity:.7;transition:opacity .15s,transform .15s;border-radius:8px;width:32px;height:32px;display:flex;align-items:center;justify-content:center}
 .sidebar-header button:hover{opacity:1;background:rgba(255,255,255,.1);transform:scale(1.05)}
 .sidebar .role-badge{
@@ -988,7 +1047,7 @@ tr:hover{background:var(--bg)}
   animation:bannerGlow 6s ease-in-out infinite;
 }
 @keyframes bannerGlow{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:.8;transform:scale(1.1)}}
-.welcome-banner h3{font-size:1.1rem;margin-bottom:.25rem;font-weight:700;position:relative;z-index:1}
+.welcome-banner h3{font-family:var(--font-display);font-size:1.15rem;margin-bottom:.25rem;font-weight:700;position:relative;z-index:1}
 .welcome-banner p{font-size:.78rem;opacity:.8;position:relative;z-index:1;font-weight:500}
 
 /* ============================
@@ -1292,7 +1351,7 @@ tr:hover{background:var(--bg)}
 }
 </style>
 </head>
-<body>
+<body class="bg-pattern">
 
 <!-- LOGIN -->
 <div class="login-wrap" id="loginPage" style="background-image:var(--login-bg)">
@@ -1578,6 +1637,45 @@ tr:hover{background:var(--bg)}
       </div>
     </div>
 
+    <!-- JADWAL HARI INI (untuk ustadz) -->
+    <div class="page" id="page-jadwal-hari-ini">
+      <h3 class="section-title">📅 Jadwal Hari Ini</h3>
+      <div id="jadwalHariIniContent"></div>
+    </div>
+
+    <!-- JADWAL (admin) -->
+    <div class="page" id="page-jadwal">
+      <h3 class="section-title">📅 Kelola Jadwal</h3>
+      <div class="filter-bar" style="margin-bottom:.5rem">
+        <select id="jadwalTab" onchange="switchJadwalTab()">
+          <option value="umum">Jadwal Umum (Ngaji, Sorogan, dll)</option>
+          <option value="sekolah">Jadwal Sekolah Formal</option>
+        </select>
+      </div>
+
+      <!-- Jadwal Umum -->
+      <div id="jadwalUmumSection">
+        <button class="btn btn-primary btn-sm" onclick="showJadwalUmumForm()">+ Tambah Jadwal Umum</button>
+        <div class="table-wrap" style="margin-top:.5rem">
+          <table>
+            <thead><tr><th>Kelompok</th><th>Ustadz</th><th>Hari</th><th>Jam</th><th>Aksi</th></tr></thead>
+            <tbody id="jadwalUmumBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Jadwal Sekolah -->
+      <div id="jadwalSekolahSection" style="display:none">
+        <button class="btn btn-primary btn-sm" onclick="showJadwalSekolahForm()">+ Tambah Jadwal Sekolah</button>
+        <div class="table-wrap" style="margin-top:.5rem">
+          <table>
+            <thead><tr><th>Kelas</th><th>Mata Pelajaran</th><th>Ustadz</th><th>Hari</th><th>Jam</th><th>Aksi</th></tr></thead>
+            <tbody id="jadwalSekolahBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <!-- PENGATURAN -->
     <div class="page" id="page-pengaturan">
       <h3 class="section-title">Pengaturan Aplikasi</h3>
@@ -1789,6 +1887,7 @@ tr:hover{background:var(--bg)}
 
 <script>
 const API='';
+function getTodayWIB(){return new Date(Date.now()+7*3600000).toISOString().slice(0,10)}
 let token=localStorage.getItem('token');
 let me=null;
 let currentTab='home';
@@ -1907,6 +2006,7 @@ function buildGridMenu(){
       {id:'kamar',icon:'🏠',label:'Kelola Kamar'},
       {id:'kelas-sekolah',icon:'🏫',label:'Kelola Kelas'},
       {id:'kegiatan',icon:'📚',label:'Kegiatan'},
+      {id:'jadwal',icon:'📅',label:'Jadwal'},
       {id:'users',icon:'👥',label:'Pengguna'},
       {id:'sensus',icon:'📊',label:'Sensus'},
     ]},
@@ -1924,6 +2024,7 @@ function buildGridMenu(){
   ];
   const ustadzGroups=[
     {title:'📋 Operasional Harian',items:[
+      {id:'jadwal-hari-ini',icon:'📅',label:'Jadwal Hari Ini'},
       {id:'absensi',icon:'✅',label:'Absensi'},
       {id:'absenmalam',icon:'🌙',label:'Absen Malam'},
       {id:'absensekolah',icon:'🏫',label:'Absen Sekolah'},
@@ -2026,6 +2127,8 @@ function loadPageData(page){
   if(page==='kamar')loadKamar();
   if(page==='kelas-sekolah')loadKelasSekolah();
   if(page==='kegiatan')loadKegiatan();
+  if(page==='jadwal')loadJadwal();
+  if(page==='jadwal-hari-ini')loadJadwalHariIni();
   if(page==='users')loadUsers();
   if(page==='rekap')loadRekap();
   if(page==='pengumuman')loadPengumuman();
@@ -2249,7 +2352,7 @@ function getKegiatanIcon(nama){
 }
 
 async function loadAbsensi(){
-  const today=new Date().toISOString().slice(0,10);
+  const today=getTodayWIB();
   if(!$('absensiTanggal').value)$('absensiTanggal').value=today;
   // Reset view
   $('absensiKelompokSection').style.display='none';
@@ -2259,6 +2362,12 @@ async function loadAbsensi(){
   selectedKegiatanCard=null;
   // Load kegiatan as cards
   await loadKegiatanCards();
+  // Auto-select kelompok dari jadwal
+  if(window._jadwalUmumHint){
+    const h=window._jadwalUmumHint;
+    window._jadwalUmumHint=null;
+    selectKelompokCard(h.kelompok_id,h.kelompok_nama);
+  }
 }
 
 async function loadKegiatanCards(){
@@ -2352,8 +2461,13 @@ async function selectKelompokCard(kelompokId,nama){
   // Highlight selected
   document.querySelectorAll('#absensiKelompokCards .picker-card').forEach(c=>c.classList.remove('selected'));
   const el=$('kel-card-'+kelompokId);if(el)el.classList.add('selected');
+  // Reset save button & indicator
+  const btn=document.querySelector('#absensiStep3 .btn-primary');
+  if(btn){btn.disabled=false;btn.textContent='💾 Simpan Absensi';btn.style.opacity='1'}
+  const indicator=$('saveIndicator');
+  if(indicator){indicator.innerHTML='';indicator.style.display='none'}
   // Load santri
-  const tanggal=$('absensiTanggal').value||new Date().toISOString().slice(0,10);
+  const tanggal=$('absensiTanggal').value||getTodayWIB();
   const data=await api('/api/absensi/kelompok/'+kelompokId+'?tanggal='+tanggal);
   if(!data||!data.santri){toast('Gagal load data');return}
   if(!data.santri.length){toast('Kelompok ini belum punya anggota');return}
@@ -2427,18 +2541,32 @@ function updateCounterDinamis(){
 }
 async function simpanAbsensiDinamis(){
   if(!absenDinamisKelompokId)return toast('Pilih kelompok dulu');
-  const tanggal=$('absensiTanggal').value||new Date().toISOString().slice(0,10);
+  const tanggal=$('absensiTanggal').value||getTodayWIB();
   const items=absenDinamisData.filter(s=>s.status).map(s=>({santri_id:s.santri_id,status:s.status,keterangan:s.keterangan||''}));
   if(!items.length)return toast('Belum ada yang diabsen');
   const res=await api('/api/absensi/bulk',{method:'POST',body:JSON.stringify({tanggal,kelompok_id:absenDinamisKelompokId,items})});
-  toast(res.message||'Tersimpan');
+  if(res.message){
+    toast('✅ '+res.message);
+    // Tampilkan banner sukses
+    const indicator=$('saveIndicator');
+    if(indicator){
+      const hadir=items.filter(i=>i.status==='H').length;
+      indicator.innerHTML='<div style="background:var(--green-ok-bg,#f0fdf4);border:1px solid var(--green-ok,#22c55e);color:#166534;padding:1rem;border-radius:14px;text-align:center;font-weight:600">✅ Absensi tersimpan! '+hadir+'/'+items.length+' hadir</div>';
+      indicator.style.display='';
+    }
+    // Disable tombol simpan
+    const btn=document.querySelector('#absensiStep3 .btn-primary');
+    if(btn){btn.disabled=true;btn.textContent='✅ Sudah Tersimpan';btn.style.opacity='.6'}
+  } else {
+    toast(res.message||'Gagal menyimpan');
+  }
   // Refresh
   absensiOnKelompokChange();
 }
 /* ================= END PHASE 3: ABSENSI DINAMIS ================= */
 
 async function loadAbsensiLegacy(){
-  const today=new Date().toISOString().slice(0,10);
+  const today=getTodayWIB();
   if(!$('absensiTanggal').value)$('absensiTanggal').value=today;
   const filterVal=$('absensiFilter').value;
   const tanggal=$('absensiTanggal').value;
@@ -2545,7 +2673,7 @@ async function simpanAbsensi(){
 // Absen Malam (reuse absensi logic with different kegiatan)
 let malamData={};
 async function loadAbsenMalam(){
-  const today=new Date().toISOString().slice(0,10);
+  const today=getTodayWIB();
   if(!$('malamTanggal').value)$('malamTanggal').value=today;
   const tanggal=$('malamTanggal').value;
   const kamarId=$('malamKamar').value;
@@ -2598,10 +2726,16 @@ async function simpanAbsenMalam(){
 // Absen Sekolah Formal
 let sekolahData={};
 async function loadAbsenSekolah(){
-  const today=new Date().toISOString().slice(0,10);
+  const today=getTodayWIB();
   if(!$('sekolahTanggal').value)$('sekolahTanggal').value=today;
   const tanggal=$('sekolahTanggal').value;
-  const kelasFilter=$('sekolahKelas').value;
+  // Auto-select kelas dari jadwal
+  let kelasFilter=$('sekolahKelas').value;
+  if(window._jadwalSekolahHint){
+    const h=window._jadwalSekolahHint;
+    window._jadwalSekolahHint=null;
+    kelasFilter=h.kelas;
+  }
   // Populate kelas dropdown from master data
   const kelasMaster=await api('/api/kelas-sekolah')||[];
   const savedVal=$('sekolahKelas').value;
@@ -2633,8 +2767,17 @@ async function simpanAbsenSekolah(){
   const tanggal=$('sekolahTanggal').value;
   const items=Object.entries(sekolahData).map(([sid,status])=>({santri_id:parseInt(sid),status,keterangan:''}));
   if(!items.length)return toast('Tidak ada data');
-  const res=await api('/api/absen-sekolah/bulk',{method:'POST',body:JSON.stringify({tanggal,items})});
-  toast(res.message||'Absen sekolah tersimpan');
+  // Include kelas dan mata_pelajaran jika ada dari jadwal hint
+  const hint=window._jadwalSekolahHint||{};
+  const body={tanggal,items,kelas:hint.kelas||null,mata_pelajaran:hint.mata_pelajaran||null};
+  const res=await api('/api/absen-sekolah/bulk',{method:'POST',body:JSON.stringify(body)});
+  if(res.message){
+    toast('✅ '+res.message);
+    const hadir=items.filter(i=>i.status==='H').length;
+    toast('Absen sekolah tersimpan: '+hadir+'/'+items.length+' hadir');
+  } else {
+    toast(res.message||'Gagal menyimpan');
+  }
 }
 
 // Santri CRUD
@@ -2929,6 +3072,104 @@ function renderKelompokTable(data){
 }
 function editKelompok(id){api('/api/kelompok').then(data=>{const k=data.find(x=>x.id===id);if(k)showModal('kelompok',k)})}
 
+/* ================= JADWAL ================= */
+const HARI_LIST=['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu'];
+function switchJadwalTab(){
+  const tab=$('jadwalTab').value;
+  $('jadwalUmumSection').style.display=tab==='umum'?'':'none';
+  $('jadwalSekolahSection').style.display=tab==='sekolah'?'':'none';
+  loadJadwal();
+}
+async function loadJadwal(){
+  const tab=$('jadwalTab').value;
+  if(tab==='umum')await loadJadwalUmum();
+  else await loadJadwalSekolah();
+}
+async function loadJadwalUmum(){
+  const data=await api('/api/jadwal-umum');
+  if(!data)return;
+  $('jadwalUmumBody').innerHTML=data.length?data.map(j=>{
+    const del=me.role==='admin'?'<button class="btn btn-danger btn-sm" onclick="hapusJadwal(\'umum\','+j.id+')">🗑️</button>':'';
+    return '<tr><td>'+j.kelompok_nama+'</td><td>'+j.ustadz_nama+'</td><td>'+j.hari+'</td><td>'+j.jam_mulai+'-'+j.jam_selesai+'</td><td>'+del+'</td></tr>';
+  }).join(''):'<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">Belum ada jadwal umum</td></tr>';
+}
+async function loadJadwalSekolah(){
+  const data=await api('/api/jadwal-sekolah');
+  if(!data)return;
+  $('jadwalSekolahBody').innerHTML=data.length?data.map(j=>{
+    const del=me.role==='admin'?'<button class="btn btn-danger btn-sm" onclick="hapusJadwal(\'sekolah\','+j.id+')">🗑️</button>':'';
+    return '<tr><td>'+j.kelas+'</td><td>'+j.mata_pelajaran+'</td><td>'+j.ustadz_nama+'</td><td>'+j.hari+'</td><td>'+j.jam_mulai+'-'+j.jam_selesai+'</td><td>'+del+'</td></tr>';
+  }).join(''):'<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">Belum ada jadwal sekolah</td></tr>';
+}
+async function hapusJadwal(tipe,id){
+  if(!confirm('Hapus jadwal ini?'))return;
+  await api('/api/jadwal-'+tipe+'/'+id,{method:'DELETE'});
+  toast('Jadwal dihapus');
+  loadJadwal();
+}
+async function showJadwalUmumForm(edit){
+  const kelompokData=await api('/api/kelompok');
+  const userData=await api('/api/users');
+  const ustadz=(userData||[]).filter(u=>u.role==='ustadz'||u.role==='admin');
+  const kelompokOpts=(kelompokData||[]).map(k=>'<option value="'+k.id+'"'+(edit&&edit.kelompok_id===k.id?' selected':'')+'>'+k.nama+' ('+k.tipe+')</option>').join('');
+  const ustadzOpts=ustadz.map(u=>'<option value="'+u.username+'"'+(edit&&edit.ustadz_username===u.username?' selected':'')+'>'+u.nama+'</option>').join('');
+  const hariOpts=HARI_LIST.map(h=>'<option value="'+h+'"'+(edit&&edit.hari===h?' selected':'')+'>'+h+'</option>').join('');
+  showModal2('Tambah Jadwal Umum','<div class="form-group"><label>Kelompok</label><select id="jw_kelompok">'+kelompokOpts+'</select></div><div class="form-group"><label>Ustadz</label><select id="jw_ustadz">'+ustadzOpts+'</select></div><div class="form-group"><label>Hari</label><select id="jw_hari">'+hariOpts+'</select></div><div class="form-group"><label>Jam Mulai</label><input type="time" id="jw_mulai" value="'+(edit?edit.jam_mulai:'05:00')+'"></div><div class="form-group"><label>Jam Selesai</label><input type="time" id="jw_selesai" value="'+(edit?edit.jam_selesai:'06:30')+'"></div>','simpanJadwalUmum('+(edit?edit.id:'null')+')');
+}
+async function simpanJadwalUmum(id){
+  const body={kelompok_id:$('jw_kelompok').value,ustadz_username:$('jw_ustadz').value,hari:$('jw_hari').value,jam_mulai:$('jw_mulai').value,jam_selesai:$('jw_selesai').value};
+  await api(id?'/api/jadwal-umum/'+id:'/api/jadwal-umum',{method:id?'PUT':'POST',body:JSON.stringify(body)});
+  toast(id?'Jadwal diupdate':'Jadwal ditambahkan');
+  hideModal2();
+  loadJadwalUmum();
+}
+async function showJadwalSekolahForm(edit){
+  const kelasData=await api('/api/kelas-sekolah');
+  const userData=await api('/api/users');
+  const ustadz=(userData||[]).filter(u=>u.role==='ustadz'||u.role==='admin');
+  const kelasOpts=(kelasData||[]).map(k=>'<option value="'+k.nama+'"'+(edit&&edit.kelas===k.nama?' selected':'')+'>'+k.nama+'</option>').join('');
+  const ustadzOpts=ustadz.map(u=>'<option value="'+u.username+'"'+(edit&&edit.ustadz_username===u.username?' selected':'')+'>'+u.nama+'</option>').join('');
+  const hariOpts=HARI_LIST.map(h=>'<option value="'+h+'"'+(edit&&edit.hari===h?' selected':'')+'>'+h+'</option>').join('');
+  showModal2('Tambah Jadwal Sekolah','<div class="form-group"><label>Kelas</label><select id="js_kelas">'+kelasOpts+'</select></div><div class="form-group"><label>Mata Pelajaran</label><input type="text" id="js_mapel" value="'+(edit?edit.mata_pelajaran:'')+'" placeholder="Matematika"></div><div class="form-group"><label>Ustadz</label><select id="js_ustadz">'+ustadzOpts+'</select></div><div class="form-group"><label>Hari</label><select id="js_hari">'+hariOpts+'</select></div><div class="form-group"><label>Jam Mulai</label><input type="time" id="js_mulai" value="'+(edit?edit.jam_mulai:'07:00')+'"></div><div class="form-group"><label>Jam Selesai</label><input type="time" id="js_selesai" value="'+(edit?edit.jam_selesai:'08:30')+'"></div>','simpanJadwalSekolah('+(edit?edit.id:'null')+')');
+}
+async function simpanJadwalSekolah(id){
+  const body={kelas:$('js_kelas').value,mata_pelajaran:$('js_mapel').value,ustadz_username:$('js_ustadz').value,hari:$('js_hari').value,jam_mulai:$('js_mulai').value,jam_selesai:$('js_selesai').value};
+  await api(id?'/api/jadwal-sekolah/'+id:'/api/jadwal-sekolah',{method:id?'PUT':'POST',body:JSON.stringify(body)});
+  toast(id?'Jadwal diupdate':'Jadwal ditambahkan');
+  hideModal2();
+  loadJadwalSekolah();
+}
+
+/* ================= JADWAL HARI INI (ustadz) ================= */
+async function loadJadwalHariIni(){
+  const data=await api('/api/jadwal-aktif');
+  if(!data){$('jadwalHariIniContent').innerHTML='<p style="text-align:center;color:var(--text-muted)">Gagal memuat jadwal</p>';return}
+  const jadwal=data.jadwal||[];
+  if(!jadwal.length){$('jadwalHariIniContent').innerHTML='<div style="text-align:center;padding:3rem 1rem;color:var(--text-muted)"><div style="font-size:3rem;margin-bottom:.5rem">📅</div><p>Tidak ada jadwal untuk hari '+data.hari+'</p></div>';return}
+  const iconMap={siap_absen:'📝',sudah_absen:'✅',belum_waktunya:'⏳',sudah_lewat:'❌'};
+  const colorMap={siap_absen:'var(--primary)',sudah_absen:'var(--green-ok)',belum_waktunya:'var(--yellow)',sudah_lewat:'var(--text-light)'};
+  const statusText={siap_absen:'Bisa Absen',sudah_absen:'Sudah Absen',belum_waktunya:'Belum Waktunya',sudah_lewat:'Sudah Lewat'};
+  $('jadwalHariIniContent').innerHTML='<p style="color:var(--text-muted);margin-bottom:1rem;font-size:.85rem">'+data.hari+', Jam sekarang: '+data.jam_sekarang+'</p>'+jadwal.map(j=>{
+    const icon=iconMap[j.status]||'📋';
+    const color=colorMap[j.status]||'var(--text)';
+    const status=statusText[j.status]||j.status;
+    const label=j.jenis==='sekolah'?(j.mata_pelajaran+' - '+j.kelas):(j.kegiatan_nama+' - '+j.kelompok_nama);
+    const btn=j.status==='siap_absen'?'<button class="btn btn-primary btn-sm" onclick="bukaAbsenDariJadwal('+JSON.stringify(j).replace(/"/g,'&quot;')+')">Buka Absen →</button>':'';
+    return '<div style="display:flex;align-items:center;gap:1rem;padding:1rem;border-radius:14px;border:1px solid var(--border);background:var(--card);margin-bottom:.5rem;box-shadow:var(--shadow-sm)"><div style="font-size:1.5rem">'+icon+'</div><div style="flex:1;min-width:0"><div style="font-weight:600;font-size:.95rem">'+label+'</div><div style="font-size:.8rem;color:var(--text-muted)">'+j.jam_mulai+' - '+j.jam_selesai+'</div></div><div style="text-align:right"><span style="color:'+color+';font-size:.8rem;font-weight:600">'+status+'</span><br>'+btn+'</div></div>';
+  }).join('');
+}
+function bukaAbsenDariJadwal(j){
+  if(j.jenis==='sekolah'){
+    switchTab('absensekolah');
+    // Auto-select kelas dan mata pelajaran via global hint
+    window._jadwalSekolahHint={kelas:j.kelas,mata_pelajaran:j.mata_pelajaran};
+  } else {
+    switchTab('absensi');
+    // Auto-select kelompok via global hint
+    window._jadwalUmumHint={kelompok_id:j.kelompok_id,kegiatan_nama:j.kegiatan_nama,kelompok_nama:j.kelompok_nama};
+  }
+}
+
 /* ================= PHASE 2: SANTRI_KELOMPOK (Detail Panel) ================= */
 let currentKelompokId=null;
 let currentKelompokNama='';
@@ -3030,10 +3271,12 @@ async function loadRekap(){
   await loadRekapData();
 }
 
+let _rekapKegiatanList=[];
 async function loadRekapKegiatanCards(){
   const container=$('rekapKegiatanCards');
   if(container.children.length>0)return;
   const kegList=await api('/api/kegiatan')||[];
+  _rekapKegiatanList=kegList;
   const kelompokAll=await api('/api/kelompok')||[];
   let html='';
   // "Semua" card
@@ -3071,6 +3314,7 @@ async function loadRekapKegiatanCards(){
 }
 
 async function selectRekapKegiatanCard(val,nama){
+  console.log('[REKAP] selectRekapKegiatanCard val=',val,'nama=',nama,'type=',typeof val);
   selectedRekapKegiatan=val;
   rekapSelectedKelompokId=null;
   rekapSelectedKelasSekolah=null;
@@ -3131,9 +3375,12 @@ async function selectRekapKelasCard(kelasNama,nama){
 
 async function loadRekapKelompokCards(val,nama){
   let kelompokList;
+  console.log('[REKAP] loadRekapKelompokCards val=',val,'nama=',nama);
   if(typeof val==='number'){
     kelompokList=await api('/api/kelompok')||[];
+    console.log('[REKAP] kelompokAll:',kelompokList.length,'filtering by id=',val,'nama=',nama);
     kelompokList=kelompokList.filter(k=>k.kegiatan_id===val||k.kegiatan_nama===nama);
+    console.log('[REKAP] filtered:',kelompokList.length,kelompokList.map(k=>k.nama));
   }else if(typeof val==='string'&&val.startsWith('tipe_')){
     kelompokList=await api('/api/kelompok?tipe='+val.replace('tipe_',''))||[];
   }else{
@@ -3174,6 +3421,7 @@ async function loadRekapData(){
   const dari=$('rekapDari').value;
   const sampai=$('rekapSampai').value;
   const kamarId=$('rekapKamar').value;
+  console.log('[REKAP] selectedRekapKegiatan=',selectedRekapKegiatan,'dari=',dari,'sampai=',sampai);
 
   if(selectedRekapKegiatan===null){
     // Semua - unified API
@@ -3206,7 +3454,8 @@ async function loadRekapData(){
     if(sampai)params.set('sampai',sampai);
     if(rekapSelectedKelompokId)params.set('kelompok_id',rekapSelectedKelompokId);
     if(typeof selectedRekapKegiatan==='number'){
-      params.set('kelompok_tipe','KEGIATAN');
+      const kegObj=_rekapKegiatanList.find(k=>k.id===selectedRekapKegiatan);
+      params.set('kelompok_tipe',kegObj?kegObj.nama:'KEGIATAN');
     }else if(typeof selectedRekapKegiatan==='string'&&selectedRekapKegiatan.startsWith('tipe_')){
       params.set('kelompok_tipe',selectedRekapKegiatan.replace('tipe_',''));
     }
@@ -3216,6 +3465,7 @@ async function loadRekapData(){
 }
 
 function renderRekapTable(data){
+  console.log('[REKAP] renderRekapTable:',data?data.length:'null','records');
   if(!data){$('rekapBody').innerHTML='';return}
   const statusMap={H:'Hadir',I:'Izin',S:'Sakit',A:'Alpa'};
   const statusColor={H:'var(--green-ok)',I:'var(--yellow)',S:'var(--blue)',A:'var(--red)'};
@@ -3263,6 +3513,7 @@ async function loadRekapUstadz(){
   if($('rekapUstadzDari').value)params.set('dari',$('rekapUstadzDari').value);
   if($('rekapUstadzSampai').value)params.set('sampai',$('rekapUstadzSampai').value);
   const data=await api('/api/rekap-ustadz?'+params);
+  console.log('[REKAP-USTADZ] data:',data?data.length:'null','users');
   if(!data)return;
   // Also get all users (ustadz + admin) to show even those with no absensi
   const allUsers=await api('/api/users')||[];
@@ -3395,7 +3646,7 @@ async function showModal(type,editData){
   } else if(type==='pelanggaran'){
     let pel=null;
     if(editData)pel=editData;
-    html='<h3>'+(pel?'Edit':'Tambah')+' Pelanggaran</h3><div class=\"form-group\"><label>Tanggal</label><input type=\"date\" id=\"mPelTanggal\" value=\"'+(pel?.tanggal||new Date().toISOString().slice(0,10))+'\"></div><div class=\"form-group\"><label>Santri</label><div style=\"position:relative\"><input type=\"text\" id=\"mPelSearch\" placeholder=\"Ketik nama santri...\" autocomplete=\"off\" style=\"width:100%;padding:.6rem;border:1px solid #ddd;border-radius:8px;font-size:.9rem;box-sizing:border-box\"><input type=\"hidden\" id=\"mPelSantri\"><div id=\"mPelSearchResults\" style=\"position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #ddd;border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;display:none;z-index:100;box-shadow:0 4px 12px rgba(0,0,0,.1)\"></div></div></div><div class=\"form-group\"><label>Jenis Pelanggaran</label><input id=\"mPelJenis\" value=\"'+(pel?.jenis||'')+'\" placeholder=\"Contoh: Terlambat, Bolos, Melawan\"></div><div class=\"form-group\"><label>Keterangan</label><input id=\"mPelKeterangan\" value=\"'+(pel?.keterangan||'')+'\" placeholder=\"Detail pelanggaran\"></div><div class=\"form-group\"><label>Sanksi</label><input id=\"mPelSanksi\" value=\"'+(pel?.sanksi||'')+'\" placeholder=\"Contoh: Teguran, Skorsing\"></div><button class=\"btn btn-primary\" onclick=\"savePelanggaran('+(pel?.id||'')+')\">Simpan</button><button class=\"btn btn-outline\" onclick=\"closeModal()\">Batal</button>';
+    html='<h3>'+(pel?'Edit':'Tambah')+' Pelanggaran</h3><div class=\"form-group\"><label>Tanggal</label><input type=\"date\" id=\"mPelTanggal\" value=\"'+(pel?.tanggal||getTodayWIB())+'\"></div><div class=\"form-group\"><label>Santri</label><div style=\"position:relative\"><input type=\"text\" id=\"mPelSearch\" placeholder=\"Ketik nama santri...\" autocomplete=\"off\" style=\"width:100%;padding:.6rem;border:1px solid #ddd;border-radius:8px;font-size:.9rem;box-sizing:border-box\"><input type=\"hidden\" id=\"mPelSantri\"><div id=\"mPelSearchResults\" style=\"position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #ddd;border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;display:none;z-index:100;box-shadow:0 4px 12px rgba(0,0,0,.1)\"></div></div></div><div class=\"form-group\"><label>Jenis Pelanggaran</label><input id=\"mPelJenis\" value=\"'+(pel?.jenis||'')+'\" placeholder=\"Contoh: Terlambat, Bolos, Melawan\"></div><div class=\"form-group\"><label>Keterangan</label><input id=\"mPelKeterangan\" value=\"'+(pel?.keterangan||'')+'\" placeholder=\"Detail pelanggaran\"></div><div class=\"form-group\"><label>Sanksi</label><input id=\"mPelSanksi\" value=\"'+(pel?.sanksi||'')+'\" placeholder=\"Contoh: Teguran, Skorsing\"></div><button class=\"btn btn-primary\" onclick=\"savePelanggaran('+(pel?.id||'')+')\">Simpan</button><button class=\"btn btn-outline\" onclick=\"closeModal()\">Batal</button>';
     $('modalContent').innerHTML=html;$('modalBg').classList.add('active');
     api('/api/santri').then(data=>{window._pelSantriList=data||[];if(pel?.santri_id){const found=data?.find(s=>s.id===pel.santri_id);if(found){$('mPelSearch').value=found.nama;$('mPelSantri').value=found.id}}});
     $('mPelSearch').addEventListener('input',function(){searchSantriPelanggaran(this.value)});
@@ -3403,7 +3654,7 @@ async function showModal(type,editData){
   } else if(type==='catatan'){
     let ct=null;
     if(editData)ct=editData;
-    html='<h3>'+(ct?'Edit':'Tambah')+' Catatan Guru</h3><div class="form-group"><label>Tanggal</label><input type="date" id="mCatTanggal" value="'+(ct?.tanggal||new Date().toISOString().slice(0,10))+'"></div><div class="form-group"><label>Santri</label><select id="mCatSantri"></select></div><div class="form-group"><label>Kategori</label><select id="mCatKategori"><option value="perilaku" '+(ct?.kategori==='perilaku'?'selected':'')+'>Perilaku</option><option value="akademik" '+(ct?.kategori==='akademik'?'selected':'')+'>Akademik</option><option value="kesehatan" '+(ct?.kategori==='kesehatan'?'selected':'')+'>Kesehatan</option><option value="lainnya" '+(ct?.kategori==='lainnya'||!ct?'selected':'')+'>Lainnya</option></select></div><div class="form-group"><label>Judul (opsional)</label><input id="mCatJudul" value="'+(ct?.judul||'')+'" placeholder="Contoh: Perkembangan Hafalan"></div><div class="form-group"><label>Isi Catatan</label><textarea id="mCatIsi" rows="4" placeholder="Tulis catatan tentang santri...">'+(ct?.isi||'')+'</textarea></div><button class="btn btn-primary" onclick="saveCatatan('+(ct?.id||'')+')">Simpan</button><button class="btn btn-outline" onclick="closeModal()">Batal</button>';
+    html='<h3>'+(ct?'Edit':'Tambah')+' Catatan Guru</h3><div class="form-group"><label>Tanggal</label><input type="date" id="mCatTanggal" value="'+(ct?.tanggal||getTodayWIB())+'"></div><div class="form-group"><label>Santri</label><select id="mCatSantri"></select></div><div class="form-group"><label>Kategori</label><select id="mCatKategori"><option value="perilaku" '+(ct?.kategori==='perilaku'?'selected':'')+'>Perilaku</option><option value="akademik" '+(ct?.kategori==='akademik'?'selected':'')+'>Akademik</option><option value="kesehatan" '+(ct?.kategori==='kesehatan'?'selected':'')+'>Kesehatan</option><option value="lainnya" '+(ct?.kategori==='lainnya'||!ct?'selected':'')+'>Lainnya</option></select></div><div class="form-group"><label>Judul (opsional)</label><input id="mCatJudul" value="'+(ct?.judul||'')+'" placeholder="Contoh: Perkembangan Hafalan"></div><div class="form-group"><label>Isi Catatan</label><textarea id="mCatIsi" rows="4" placeholder="Tulis catatan tentang santri...">'+(ct?.isi||'')+'</textarea></div><button class="btn btn-primary" onclick="saveCatatan('+(ct?.id||'')+')">Simpan</button><button class="btn btn-outline" onclick="closeModal()">Batal</button>';
     $('modalContent').innerHTML=html;$('modalBg').classList.add('active');
     api('/api/santri').then(data=>{if(data)data.forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=s.nama;if(ct?.santri_id===s.id)o.selected=true;$('mCatSantri').appendChild(o)})});
   } else if(type==='kelas-sekolah'){
@@ -3433,6 +3684,11 @@ async function showModal(type,editData){
   }
 }
 function closeModal(){$('modalBg').classList.remove('active')}
+function showModal2(title,formHtml,onSave){
+  const html='<h3>'+title+'</h3>'+formHtml+'<div style="display:flex;gap:.5rem;margin-top:1rem"><button class="btn btn-primary" onclick="'+onSave+'">Simpan</button><button class="btn btn-outline" onclick="hideModal2()">Batal</button></div>';
+  $('modalContent').innerHTML=html;$('modalBg').classList.add('active');
+}
+function hideModal2(){$('modalBg').classList.remove('active')}
 
 // ── Import Excel ──
 function showImportExcel(){
@@ -3541,6 +3797,9 @@ async function saveKelompok(id){
   if(body.tipe==='KEGIATAN'){
     body.kegiatan_nama=$('mKegiatan').value||null;
     if(!body.kegiatan_nama)return toast('Pilih kegiatan dulu');
+  }else if(body.tipe!=='KAMAR'&&body.tipe!=='SOROGAN'&&body.tipe!=='SOROGAN_MALAM'&&body.tipe!=='BAKAT'&&body.tipe!=='SEKOLAH'){
+    // Pokok kegiatan (Madrasah Diniyyah, Ngaji subuh, dll) → auto-set kegiatan_nama = tipe
+    body.kegiatan_nama=body.tipe;
   }
   const res=await api('/api/kelompok'+(id?'/'+id:''),{method:id?'PUT':'POST',body:JSON.stringify(body)});
   toast(res.message||'Tersimpan');closeModal();loadKelompok();
@@ -3590,7 +3849,7 @@ async function loadRaportForm(autoLoadId,autoLoadNama){
   const santri=await api('/api/santri');
   if(!santri)return;
   raportSantriList=santri;
-  const today=new Date().toISOString().slice(0,10);
+  const today=getTodayWIB();
   const firstDay=new Date(new Date().getFullYear(),new Date().getMonth(),1).toISOString().slice(0,10);
   if(!$('raportDari').value)$('raportDari').value=firstDay;
   if(!$('raportSampai').value)$('raportSampai').value=today;

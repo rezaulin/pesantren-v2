@@ -16,7 +16,15 @@ const DB_FILE = process.env.DATA_FILE || path.join(__dirname, 'data.json');
 
 app.use(compression());
 app.use(express.json({ limit: '5mb' }));
-app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1h', etag: true }));
+app.use(express.static(path.join(__dirname, 'public'), {
+  maxAge: 0,
+  etag: true,
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    }
+  }
+}));
 
 // Multer - memory storage, max 5MB
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
@@ -34,9 +42,11 @@ function loadDB() {
       const kelasSet = new Set(data.santri.map(s => s.kelas_sekolah).filter(Boolean));
       data.kelas_sekolah = [...kelasSet].sort().map((nama, i) => ({ id: i + 1, nama, created_at: new Date().toISOString() }));
     }
+    if (!data.jadwal_umum) data.jadwal_umum = [];
+    if (!data.jadwal_sekolah) data.jadwal_sekolah = [];
     return data;
   }
-  return { users: [], kamar: [], kelas_sekolah: [], santri: [], absensi: [], absen_malam: [], absen_sekolah: [], absensi_sesi: [], pengumuman: [], kegiatan: [], kelompok: [], santri_kelompok: [] };
+  return { users: [], kamar: [], kelas_sekolah: [], santri: [], absensi: [], absen_malam: [], absen_sekolah: [], absensi_sesi: [], pengumuman: [], kegiatan: [], kelompok: [], santri_kelompok: [], jadwal_umum: [], jadwal_sekolah: [] };
 }
 function saveDB(data) { 
   _pendingSave = true;
@@ -105,6 +115,27 @@ if (!db.kelompok.find(k => k.tipe === 'SEKOLAH')) {
   db.kelompok.push({ id: nextId(db.kelompok), nama: 'Sekolah', tipe: 'SEKOLAH', kegiatan_nama: 'Sekolah', created_at: new Date().toISOString() });
   saveDB(db);
   console.log('Auto-created kelompok Sekolah');
+}
+
+// ── Jadwal Helper ──────────────────────────────────────
+const HARI = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+function getWaktuWIB() {
+  return new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+}
+function getHariIni() { return HARI[getWaktuWIB().getDay()]; }
+function getJamSekarang() {
+  const d = getWaktuWIB();
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+function cekJadwalValid(jamMulai, jamSelesai) {
+  const now = getJamSekarang();
+  const toleransi = addMinutes(jamSelesai, 60); // molor 1 jam
+  return now >= jamMulai && now <= toleransi;
+}
+function addMinutes(jam, menit) {
+  const [h, m] = jam.split(':').map(Number);
+  const total = h * 60 + m + menit;
+  return `${String(Math.floor(total / 60) % 24).padStart(2,'0')}:${String(total % 60).padStart(2,'0')}`;
 }
 
 // ── Auth ───────────────────────────────────────────────
@@ -528,6 +559,132 @@ app.delete('/api/kegiatan/:id', authenticate, requireAdmin, (req, res) => {
   res.json({ message: 'Kegiatan dihapus' });
 });
 
+// ── Jadwal Umum (Sorogan, Ngaji, Bakat, dst) ──────────
+app.get('/api/jadwal-umum', authenticate, (req, res) => {
+  let list = db.jadwal_umum;
+  if (req.query.kelompok_id) list = list.filter(j => j.kelompok_id == req.query.kelompok_id);
+  if (req.query.ustadz_username) list = list.filter(j => j.ustadz_username === req.query.ustadz_username);
+  res.json(list.map(j => {
+    const u = db.users.find(x => x.username === j.ustadz_username);
+    const kl = db.kelompok.find(x => x.id === j.kelompok_id);
+    const kg = kl ? db.kegiatan.find(x => x.nama === kl.kegiatan_nama) : null;
+    return { ...j, ustadz_nama: u ? u.nama : j.ustadz_username, kelompok_nama: kl ? kl.nama : '-', kegiatan_nama: kg ? kg.nama : (kl ? kl.kegiatan_nama : '-') };
+  }));
+});
+app.post('/api/jadwal-umum', authenticate, requireAdmin, (req, res) => {
+  const { kelompok_id, ustadz_username, hari, jam_mulai, jam_selesai } = req.body;
+  if (!kelompok_id || !ustadz_username || !hari || !jam_mulai || !jam_selesai)
+    return res.status(400).json({ message: 'Semua field wajib diisi' });
+  const j = { id: nextId(db.jadwal_umum), kelompok_id: parseInt(kelompok_id), ustadz_username, hari, jam_mulai, jam_selesai, created_at: new Date().toISOString() };
+  db.jadwal_umum.push(j); saveDB(db); res.json(j);
+});
+app.put('/api/jadwal-umum/:id', authenticate, requireAdmin, (req, res) => {
+  const j = db.jadwal_umum.find(x => x.id == req.params.id);
+  if (!j) return res.status(404).json({ message: 'Jadwal tidak ditemukan' });
+  if (req.body.kelompok_id) j.kelompok_id = parseInt(req.body.kelompok_id);
+  if (req.body.ustadz_username) j.ustadz_username = req.body.ustadz_username;
+  if (req.body.hari) j.hari = req.body.hari;
+  if (req.body.jam_mulai) j.jam_mulai = req.body.jam_mulai;
+  if (req.body.jam_selesai) j.jam_selesai = req.body.jam_selesai;
+  saveDB(db); res.json({ message: 'Jadwal diupdate' });
+});
+app.delete('/api/jadwal-umum/:id', authenticate, requireAdmin, (req, res) => {
+  db.jadwal_umum = db.jadwal_umum.filter(x => x.id != req.params.id);
+  saveDB(db); res.json({ message: 'Jadwal dihapus' });
+});
+
+// ── Jadwal Sekolah ─────────────────────────────────────
+app.get('/api/jadwal-sekolah', authenticate, (req, res) => {
+  let list = db.jadwal_sekolah;
+  if (req.query.kelas) list = list.filter(j => j.kelas === req.query.kelas);
+  if (req.query.ustadz_username) list = list.filter(j => j.ustadz_username === req.query.ustadz_username);
+  res.json(list.map(j => {
+    const u = db.users.find(x => x.username === j.ustadz_username);
+    return { ...j, ustadz_nama: u ? u.nama : j.ustadz_username };
+  }));
+});
+app.post('/api/jadwal-sekolah', authenticate, requireAdmin, (req, res) => {
+  const { kelas, mata_pelajaran, ustadz_username, hari, jam_mulai, jam_selesai } = req.body;
+  if (!kelas || !mata_pelajaran || !ustadz_username || !hari || !jam_mulai || !jam_selesai)
+    return res.status(400).json({ message: 'Semua field wajib diisi' });
+  const j = { id: nextId(db.jadwal_sekolah), kelas, mata_pelajaran, ustadz_username, hari, jam_mulai, jam_selesai, created_at: new Date().toISOString() };
+  db.jadwal_sekolah.push(j); saveDB(db); res.json(j);
+});
+app.put('/api/jadwal-sekolah/:id', authenticate, requireAdmin, (req, res) => {
+  const j = db.jadwal_sekolah.find(x => x.id == req.params.id);
+  if (!j) return res.status(404).json({ message: 'Jadwal tidak ditemukan' });
+  if (req.body.kelas) j.kelas = req.body.kelas;
+  if (req.body.mata_pelajaran) j.mata_pelajaran = req.body.mata_pelajaran;
+  if (req.body.ustadz_username) j.ustadz_username = req.body.ustadz_username;
+  if (req.body.hari) j.hari = req.body.hari;
+  if (req.body.jam_mulai) j.jam_mulai = req.body.jam_mulai;
+  if (req.body.jam_selesai) j.jam_selesai = req.body.jam_selesai;
+  saveDB(db); res.json({ message: 'Jadwal diupdate' });
+});
+app.delete('/api/jadwal-sekolah/:id', authenticate, requireAdmin, (req, res) => {
+  db.jadwal_sekolah = db.jadwal_sekolah.filter(x => x.id != req.params.id);
+  saveDB(db); res.json({ message: 'Jadwal dihapus' });
+});
+
+// ── Jadwal Aktif (untuk ustadz buka absen) ─────────────
+app.get('/api/jadwal-aktif', authenticate, (req, res) => {
+  const hari = getHariIni();
+  const jamNow = getJamSekarang();
+  const isAdmin = req.user.role === 'admin';
+  const today = getWaktuWIB().toISOString().slice(0, 10);
+
+  // JADWAL UMUM
+  let jadwalUmum = db.jadwal_umum.filter(j => j.hari === hari);
+  if (!isAdmin) jadwalUmum = jadwalUmum.filter(j => j.ustadz_username === req.user.username);
+
+  const umumResult = jadwalUmum.map(j => {
+    const kl = db.kelompok.find(x => x.id === j.kelompok_id);
+    const kg = kl ? db.kegiatan.find(x => x.nama === kl.kegiatan_nama) : null;
+    let status = 'belum_waktunya';
+    if (cekJadwalValid(j.jam_mulai, j.jam_selesai)) {
+      // Cek apakah sudah absen
+      const sudahAbsen = db.absensi_sesi.some(s =>
+        s.ustadz_username === req.user.username &&
+        s.kelompok_id === j.kelompok_id &&
+        s.tanggal === today
+      );
+      status = sudahAbsen ? 'sudah_absen' : 'siap_absen';
+    } else if (jamNow > addMinutes(j.jam_selesai, 60)) {
+      status = 'sudah_lewat';
+    }
+    return {
+      ...j,
+      jenis: 'umum',
+      kegiatan_nama: kg ? kg.nama : (kl ? kl.kegiatan_nama : '-'),
+      kelompok_nama: kl ? kl.nama : '-',
+      status
+    };
+  });
+
+  // JADWAL SEKOLAH
+  let jadwalSekolah = db.jadwal_sekolah.filter(j => j.hari === hari);
+  if (!isAdmin) jadwalSekolah = jadwalSekolah.filter(j => j.ustadz_username === req.user.username);
+
+  const sekolahResult = jadwalSekolah.map(j => {
+    let status = 'belum_waktunya';
+    if (cekJadwalValid(j.jam_mulai, j.jam_selesai)) {
+      const sudahAbsen = db.absensi_sesi.some(s =>
+        s.ustadz_username === req.user.username &&
+        s.kegiatan_nama === 'Sekolah' &&
+        s.kelas_sekolah === j.kelas &&
+        s.mata_pelajaran === j.mata_pelajaran &&
+        s.tanggal === today
+      );
+      status = sudahAbsen ? 'sudah_absen' : 'siap_absen';
+    } else if (jamNow > addMinutes(j.jam_selesai, 60)) {
+      status = 'sudah_lewat';
+    }
+    return { ...j, jenis: 'sekolah', status };
+  });
+
+  res.json({ hari, jam_sekarang: jamNow, jadwal: [...umumResult, ...sekolahResult].sort((a, b) => a.jam_mulai.localeCompare(b.jam_mulai)) });
+});
+
 // ── Kelompok (Many-to-Many Groups) ─────────────────────
 app.get('/api/kelompok', authenticate, (req, res) => {
   let list = db.kelompok;
@@ -650,9 +807,9 @@ app.get('/api/absensi', authenticate, (req, res) => {
   if (req.query.kelompok_id) list = list.filter(a => a.kelompok_id == req.query.kelompok_id);
   // Filter by sesi_id (untuk bedain pagi/siang)
   if (req.query.sesi_id) list = list.filter(a => a.sesi_id == req.query.sesi_id);
-  // Filter by kelompok tipe (e.g., ?kelompok_tipe=SEKOLAH)
+  // Filter by kelompok tipe (e.g., ?kelompok_tipe=SEKOLAH) — also match kegiatan_nama
   if (req.query.kelompok_tipe) {
-    const kelompokIds = db.kelompok.filter(k => k.tipe === req.query.kelompok_tipe).map(k => k.id);
+    const kelompokIds = db.kelompok.filter(k => k.tipe === req.query.kelompok_tipe || k.kegiatan_nama === req.query.kelompok_tipe).map(k => k.id);
     list = list.filter(a => kelompokIds.includes(a.kelompok_id));
   }
   // Backward compat: filter by kegiatan_id
@@ -708,6 +865,22 @@ app.post('/api/absensi/bulk', authenticate, (req, res) => {
   const { tanggal, kegiatan_id, kelompok_id, sesi_id, jam_sesi, items } = req.body;
   if (!tanggal || !items) return res.status(400).json({ message: 'Data tidak lengkap (tanggal, items wajib)' });
   if (!kelompok_id && !kegiatan_id) return res.status(400).json({ message: 'kelompok_id atau kegiatan_id wajib' });
+
+  // ── Validasi Jadwal (untuk ustadz, bukan admin) ──
+  const todayWIB = getWaktuWIB().toISOString().slice(0, 10);
+  if (req.user.role !== 'admin' && tanggal === todayWIB) {
+    const hari = getHariIni();
+    const kelId = kelompok_id ? parseInt(kelompok_id) : null;
+    if (kelId) {
+      const jadwalMatch = db.jadwal_umum.find(j =>
+        j.kelompok_id === kelId && j.ustadz_username === req.user.username && j.hari === hari
+      );
+      if (!jadwalMatch) return res.status(403).json({ message: 'Anda tidak memiliki jadwal untuk kelompok ini hari ini' });
+      if (!cekJadwalValid(jadwalMatch.jam_mulai, jadwalMatch.jam_selesai))
+        return res.status(403).json({ message: `Di luar jam jadwal (${jadwalMatch.jam_mulai}-${jadwalMatch.jam_selesai}, toleransi 1 jam)` });
+    }
+  }
+
   // Resolve kelompok_id dari kegiatan_id jika tidak dikirim
   let finalKelompokId = kelompok_id ? parseInt(kelompok_id) : null;
   if (!finalKelompokId && kegiatan_id) {
@@ -825,22 +998,35 @@ app.get('/api/absen-sekolah', authenticate, (req, res) => {
 app.post('/api/absen-sekolah/bulk', authenticate, (req, res) => {
   if (req.user.role === 'wali') return res.status(403).json({ message: 'Wali tidak bisa mengubah absensi' });
   if (!db.absensi_sesi) db.absensi_sesi = [];
-  const { tanggal, items } = req.body;
+  const { tanggal, items, kelas, mata_pelajaran } = req.body;
   if (!tanggal || !items) return res.status(400).json({ message: 'Data tidak lengkap (tanggal, items wajib)' });
+
+  // ── Validasi Jadwal Sekolah (untuk ustadz, bukan admin) ──
+  const todayWIB2 = getWaktuWIB().toISOString().slice(0, 10);
+  if (req.user.role !== 'admin' && tanggal === todayWIB2 && kelas && mata_pelajaran) {
+    const hari = getHariIni();
+    const jadwalMatch = db.jadwal_sekolah.find(j =>
+      j.kelas === kelas && j.mata_pelajaran === mata_pelajaran && j.ustadz_username === req.user.username && j.hari === hari
+    );
+    if (!jadwalMatch) return res.status(403).json({ message: 'Anda tidak memiliki jadwal untuk pelajaran ini' });
+    if (!cekJadwalValid(jadwalMatch.jam_mulai, jadwalMatch.jam_selesai))
+      return res.status(403).json({ message: `Di luar jam jadwal (${jadwalMatch.jam_mulai}-${jadwalMatch.jam_selesai}, toleransi 1 jam)` });
+  }
+
   // Cari kelompok Sekolah
   const kelompok = db.kelompok.find(k => k.tipe === 'SEKOLAH');
   const kelompokId = kelompok ? kelompok.id : null;
   // ── Sesi: replace jika sudah ada ──
-  const oldSesiSekolah = db.absensi_sesi.find(s => s.ustadz_username === req.user.username && (s.kegiatan_nama === 'Sekolah' || (kelompokId && s.kelompok_id === kelompokId)) && s.tanggal === tanggal);
+  const oldSesiSekolah = db.absensi_sesi.find(s => s.ustadz_username === req.user.username && (s.kegiatan_nama === 'Sekolah' || (kelompokId && s.kelompok_id === kelompokId)) && s.tanggal === tanggal && (!mata_pelajaran || s.mata_pelajaran === mata_pelajaran));
   if (oldSesiSekolah) {
     if (kelompokId) {
-      db.absensi = db.absensi.filter(a => !(a.kelompok_id === kelompokId && a.tanggal === tanggal && a.recorded_by === req.user.id));
+      db.absensi = db.absensi.filter(a => !(a.kelompok_id === kelompokId && a.tanggal === tanggal && a.recorded_by === req.user.id && (!mata_pelajaran || a.mata_pelajaran === mata_pelajaran)));
     }
     if (!db.absen_sekolah) db.absen_sekolah = [];
-    db.absen_sekolah = db.absen_sekolah.filter(a => !(a.tanggal === tanggal && a.recorded_by === req.user.id));
+    db.absen_sekolah = db.absen_sekolah.filter(a => !(a.tanggal === tanggal && a.recorded_by === req.user.id && (!mata_pelajaran || a.mata_pelajaran === mata_pelajaran)));
     oldSesiSekolah.created_at = new Date().toISOString();
   } else {
-    db.absensi_sesi.push({ id: nextId(db.absensi_sesi), ustadz_username: req.user.username, kegiatan_id: 0, kelompok_id: kelompokId, kegiatan_nama: 'Sekolah', tanggal, created_at: new Date().toISOString() });
+    db.absensi_sesi.push({ id: nextId(db.absensi_sesi), ustadz_username: req.user.username, kegiatan_id: 0, kelompok_id: kelompokId, kegiatan_nama: 'Sekolah', kelas_sekolah: kelas || null, mata_pelajaran: mata_pelajaran || null, tanggal, created_at: new Date().toISOString() });
   }
   // Insert ke unified absensi
   items.forEach(item => {
@@ -853,7 +1039,8 @@ app.post('/api/absen-sekolah/bulk', authenticate, (req, res) => {
 app.get('/api/rekap', authenticate, (req, res) => {
   // Rekap by kelompok_tipe (unified - recommended)
   if (req.query.kelompok_tipe) {
-    const kelompokIds = db.kelompok.filter(k => k.tipe === req.query.kelompok_tipe).map(k => k.id);
+    // Match by tipe ATAU kegiatan_nama (kelompok bisa punya tipe="KEGIATAN" atau tipe=nama_kegiatan)
+    const kelompokIds = db.kelompok.filter(k => k.tipe === req.query.kelompok_tipe || k.kegiatan_nama === req.query.kelompok_tipe).map(k => k.id);
     let list = db.absensi.filter(a => kelompokIds.includes(a.kelompok_id));
     if (req.query.dari) list = list.filter(a => a.tanggal >= req.query.dari);
     if (req.query.sampai) list = list.filter(a => a.tanggal <= req.query.sampai);
@@ -862,7 +1049,9 @@ app.get('/api/rekap', authenticate, (req, res) => {
       const s = db.santri.find(x => x.id === a.santri_id);
       const k = s ? db.kamar.find(x => x.id === s.kamar_id) : null;
       const kl = db.kelompok.find(x => x.id === a.kelompok_id);
-      return { tanggal: a.tanggal, nama: s ? s.nama : '-', kamar_nama: k ? k.nama : '-', kelompok_nama: kl ? kl.nama : '-', kegiatan_nama: kl ? kl.nama : '-', status: a.status, keterangan: a.keterangan };
+      const isSekolah = kl && kl.tipe === 'SEKOLAH';
+      const kegNama = kl ? (kl.kegiatan_nama || (kl.tipe === 'KEGIATAN' ? kl.nama : kl.tipe)) : '-';
+      return { tanggal: a.tanggal, nama: s ? s.nama : '-', kamar_nama: k ? k.nama : '-', kelompok_nama: isSekolah ? (s ? (s.kelas_sekolah || '-') : '-') : (kl ? kl.nama : '-'), kegiatan_nama: kegNama, status: a.status, keterangan: a.keterangan };
     }).sort((a, b) => b.tanggal.localeCompare(a.tanggal)));
   }
   // Rekap by kelompok_id (unified)
@@ -933,7 +1122,8 @@ app.get('/api/rekap', authenticate, (req, res) => {
     const kl = db.kelompok.find(x => x.id === a.kelompok_id);
     // For Sekolah: kelompok_nama = kelas, kegiatan_nama = Sekolah
     const isSekolah = sekolahKelompok && a.kelompok_id === sekolahKelompok.id;
-    return { tanggal: a.tanggal, nama: s ? s.nama : '-', kamar_nama: k ? k.nama : '-', kelompok_nama: isSekolah ? (s ? (s.kelas_sekolah || '-') : '-') : (kl ? kl.nama : '-'), kegiatan_nama: isSekolah ? 'Sekolah' : (kg ? kg.nama : (kl ? kl.nama : '-')), status: a.status, keterangan: a.keterangan || '' };
+    const kegNama = isSekolah ? 'Sekolah' : (kg ? kg.nama : (kl ? (kl.kegiatan_nama || (kl.tipe === 'KEGIATAN' ? kl.nama : kl.tipe)) : '-'));
+    return { tanggal: a.tanggal, nama: s ? s.nama : '-', kamar_nama: k ? k.nama : '-', kelompok_nama: isSekolah ? (s ? (s.kelas_sekolah || '-') : '-') : (kl ? kl.nama : '-'), kegiatan_nama: kegNama, status: a.status, keterangan: a.keterangan || '' };
   });
   // Merge all
   let allList = [...list, ...malamList, ...sekolahList];
