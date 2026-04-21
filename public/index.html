@@ -1809,7 +1809,8 @@ tr:hover{background:var(--bg)}
         </div>
         <div style="display:flex;gap:.5rem">
           <button class="btn btn-primary btn-sm" onclick="loadRaport()">Tampilkan</button>
-          <button class="btn btn-outline btn-sm" onclick="exportRaportPDF()">📥 Export PDF</button>
+          <button class="btn btn-outline btn-sm" onclick="exportRaportPDF()">📥 PDF</button>
+          <button class="btn btn-outline btn-sm" onclick="exportRaportExcel()">📊 Excel</button>
           <button class="btn btn-outline btn-sm" onclick="downloadAllRaport()">📦 Download Semua</button>
         </div>
       </div>
@@ -4107,7 +4108,7 @@ async function loadRaport(){
   // Print button
   html+='<div id="raportActions" style="text-align:center;margin:.8rem 0">';
   html+='<button class="btn btn-primary btn-sm" onclick="printRaport()" style="margin-right:.5rem">🖨️ Cetak Raport</button>';
-  html+='<button class="btn btn-outline btn-sm" onclick="exportRaportPDF()">📥 Export PDF</button>';
+  html+='<button class="btn btn-outline btn-sm" onclick="exportRaportPDF()">📥 PDF</button> <button class="btn btn-outline btn-sm" onclick="exportRaportExcel()">📊 Excel</button>';
   html+='</div>';
   $('raportContent').innerHTML=html;
 }
@@ -4120,20 +4121,37 @@ function exportRaportPDF(){
   const tkn=localStorage.getItem('token');
   const dari=$('raportDari').value||'';
   const sampai=$('raportSampai').value||'';
+  const nama=$('raportSearch').value||'santri';
+  const safeNama=nama.replace(/[^a-zA-Z0-9\u00C0-\u024F]/g,'-');
   let url='/api/raport/'+sid+'/pdf?dari='+dari+'&sampai='+sampai;
-  fetch(url,{headers:{'Authorization':'Bearer '+tkn}}).then(r=>{if(!r.ok)return r.json().then(e=>{throw new Error(e.message||'Gagal export PDF')});return r.blob()}).then(blob=>{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='raport-santri.pdf';a.click()}).catch(e=>toast(e.message));
+  fetch(url,{headers:{'Authorization':'Bearer '+tkn}}).then(r=>{if(!r.ok)return r.json().then(e=>{throw new Error(e.message||'Gagal export PDF')});return r.blob()}).then(blob=>{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='raport-'+safeNama+'.pdf';a.click()}).catch(e=>toast(e.message));
+}
+async function exportRaportExcel(){
+  const sid=$('raportSantri').value;
+  if(!sid)return toast('Pilih santri dulu');
+  const tkn=localStorage.getItem('token');
+  const dari=$('raportDari').value||'';
+  const sampai=$('raportSampai').value||'';
+  const nama=$('raportSearch').value||'santri';
+  const safeNama=nama.replace(/[^a-zA-Z0-9\u00C0-\u024F]/g,'-');
+  let url='/api/raport/'+sid+'/excel?dari='+dari+'&sampai='+sampai;
+  const res=await fetch(url,{headers:{'Authorization':'Bearer '+tkn}});
+  if(!res.ok){try{const e=await res.json();toast(e.message||'Gagal export')}catch(_){toast('Gagal export')}return}
+  const blob=await res.blob();
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='raport-'+safeNama+'.xlsx';a.click();
+  URL.revokeObjectURL(a.href);
 }
 async function downloadAllRaport(){
-  toast('Mempersiapkan ZIP... mungkin butuh beberapa detik');
+  toast('Mempersiapkan Excel...');
   const tkn=localStorage.getItem('token');
   const dari=$('raportDari').value||'';
   const sampai=$('raportSampai').value||'';
   const res=await fetch('/api/raport/download-all?dari='+dari+'&sampai='+sampai,{headers:{'Authorization':'Bearer '+tkn}});
   if(!res.ok){try{const e=await res.json();toast(e.message||'Gagal download')}catch(_){toast('Gagal download')}return}
   const blob=await res.blob();
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='raport-semua-santri.zip';a.click();
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='raport-semua-santri.xlsx';a.click();
   URL.revokeObjectURL(a.href);
-  toast('ZIP berhasil di-download!');
+  toast('Excel berhasil di-download!');
 }
 
 // PDF & Excel Export

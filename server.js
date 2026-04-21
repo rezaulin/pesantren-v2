@@ -1211,135 +1211,144 @@ app.delete('/api/catatan/:id', authenticate, (req, res) => {
   saveDB(db); res.json({ message: 'Catatan dihapus' });
 });
 
-// ── Download All Raport (ZIP) ──────────────────────────
-app.get('/api/raport/download-all', authenticate, (req, res) => {
-  const dataSettings = loadDB();
-  const appName = (dataSettings.settings && dataSettings.settings.app_name) || 'Pesantren';
-  const kepalaNama = (dataSettings.settings && dataSettings.settings.kepala_nama) || '';
-  const alamatLembaga = (dataSettings.settings && dataSettings.settings.alamat_lembaga) || '';
-  const namaKota = (dataSettings.settings && dataSettings.settings.nama_kota) || '';
-  const logoData = (dataSettings.settings && dataSettings.settings.logo) || '';
-  const bulanNama = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-  const tglCetak = new Date();
-  const tglStr = (namaKota ? namaKota + ', ' : '') + tglCetak.getDate() + ' ' + bulanNama[tglCetak.getMonth() + 1] + ' ' + tglCetak.getFullYear();
-  const waliDisplay_ = '......................................';
-  const kepalaDisplay = (kepalaNama && kepalaNama !== '-') ? kepalaNama : '......................................';
-
+// ── Download All Raport (Excel) ──────────────────────────
+app.get('/api/raport/download-all', authenticate, async (req, res) => {
+  const appName = (db.settings && db.settings.app_name) || 'Pesantren';
   let santriList = db.santri.filter(s => s.status === 'aktif');
   if (!santriList.length) return res.status(404).json({ message: 'Tidak ada santri aktif' });
 
-  res.setHeader('Content-Type', 'application/zip');
-  res.setHeader('Content-Disposition', 'attachment; filename=raport-semua-santri.zip');
-  const archive = archiver('zip', { zlib: { level: 5 } });
-  archive.pipe(res);
-  archive.on('error', (err) => { console.error('ZIP error:', err); res.status(500).end(); });
-
-  function generateRaportPDF(santri) {
-    return new Promise((resolve) => {
-      const kamar = db.kamar.find(k => k.id === santri.kamar_id);
-      let absensiList = db.absensi.filter(a => a.santri_id === santri.id);
-      if (req.query.dari) absensiList = absensiList.filter(a => a.tanggal >= req.query.dari);
-      if (req.query.sampai) absensiList = absensiList.filter(a => a.tanggal <= req.query.sampai);
-      function getKegiatanLabel(kl) {
-        if (kl.tipe === 'SEKOLAH') return 'Absen Sekolah';
-        if (kl.tipe === 'KAMAR') return 'Kamar (' + kl.nama + ')';
-        if (kl.kegiatan_nama) return kl.kegiatan_nama + ' (' + kl.nama + ')';
-        const tipeLabel = kl.tipe.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-        return tipeLabel + ' (' + kl.nama + ')';
-      }
-      const rekap = {};
-      absensiList.forEach(a => {
-        const kl = db.kelompok.find(k => k.id === a.kelompok_id);
-        if (!kl) return;
-        const label = getKegiatanLabel(kl);
-        if (!rekap[label]) rekap[label] = { H: 0, I: 0, S: 0, A: 0 };
-        rekap[label][a.status]++;
-      });
-      let absenMalamList = (db.absen_malam || []).filter(a => a.santri_id === santri.id);
-      if (req.query.dari) absenMalamList = absenMalamList.filter(a => a.tanggal >= req.query.dari);
-      if (req.query.sampai) absenMalamList = absenMalamList.filter(a => a.tanggal <= req.query.sampai);
-      if (absenMalamList.length) { rekap['Absen Malam'] = { H: 0, I: 0, S: 0, A: 0 }; absenMalamList.forEach(a => rekap['Absen Malam'][a.status]++); }
-      const wali = santri.wali_user_id ? db.users.find(u => u.id === santri.wali_user_id) : null;
-      const waliD = (wali && wali.nama && wali.nama !== '-') ? wali.nama : waliDisplay_;
-      const sampaiD = req.query.sampai ? new Date(req.query.sampai) : new Date();
-      const periodeLabel = bulanNama[sampaiD.getMonth() + 1] + ' ' + sampaiD.getFullYear();
-      const totalH = Object.values(rekap).reduce((s, r) => s + r.H, 0);
-      const totalI = Object.values(rekap).reduce((s, r) => s + r.I, 0);
-      const totalS = Object.values(rekap).reduce((s, r) => s + r.S, 0);
-      const totalA = Object.values(rekap).reduce((s, r) => s + r.A, 0);
-      const totalAll = totalH + totalI + totalS + totalA;
-
-      const doc = new PDFDocument({ size: 'A4', margin: 40 });
-      const chunks = [];
-      doc.on('data', chunk => chunks.push(chunk));
-      doc.on('end', () => resolve({ filename: 'raport-' + santri.nama.replace(/[^a-zA-Z0-9\u00C0-\u024F]/g, '-') + '.pdf', buffer: Buffer.concat(chunks) }));
-      const L = 40, R = 555, W = R - L;
-      let yy = 40;
-      const logoW = 75; const textX = L + logoW; const textW = W - logoW * 2;
-      if (logoData && logoData.startsWith('data:')) { try { doc.image(Buffer.from(logoData.split(',')[1], 'base64'), L, yy, { width: 50, height: 50 }); } catch (e) {} }
-      doc.fontSize(14).font('Helvetica-Bold').text(appName, textX, yy, { width: textW, align: 'center' }); yy += 18;
-      doc.fontSize(11).font('Helvetica-Bold').text('LAPORAN BULANAN PERKEMBANGAN SANTRI', textX, yy, { width: textW, align: 'center' }); yy += 14;
-      doc.fontSize(8).font('Helvetica').text(alamatLembaga || '', textX, yy, { width: textW, align: 'center' }); yy += 14;
-      doc.moveTo(L, yy + 4).lineTo(R, yy + 4).lineWidth(1.5).stroke();
-      doc.moveTo(L, yy + 7).lineTo(R, yy + 7).lineWidth(0.5).stroke(); yy += 16;
-      doc.fontSize(9);
-      const lbl1X = L, col1X = L + 85, val1X = L + 95;
-      const lbl2X = 320, col2X = 320 + 85, val2X = 320 + 95;
-      const dataW_ = 135;
-      doc.font('Helvetica-Bold').text('Nama Santri', lbl1X, yy, { width: 85 }); doc.text(':', col1X, yy);
-      doc.font('Helvetica').text(santri.nama, val1X, yy, { width: dataW_ });
-      doc.font('Helvetica-Bold').text('Kelas Diniyyah', lbl2X, yy); doc.text(':', col2X, yy);
-      doc.font('Helvetica').text(santri.kelas_diniyyah || '-', val2X, yy, { width: dataW_ }); yy += 14;
-      doc.font('Helvetica-Bold').text('Asrama', lbl1X, yy, { width: 85 }); doc.text(':', col1X, yy);
-      doc.font('Helvetica').text(kamar ? kamar.nama : '-', val1X, yy, { width: dataW_ });
-      doc.font('Helvetica-Bold').text('Periode', lbl2X, yy); doc.text(':', col2X, yy);
-      doc.font('Helvetica').text(periodeLabel, val2X, yy, { width: dataW_ }); yy += 14;
-      doc.font('Helvetica-Bold').text('Alamat', lbl1X, yy, { width: 85 }); doc.text(':', col1X, yy);
-      doc.font('Helvetica').text(santri.alamat || '-', val1X, yy, { width: dataW_ });
-      doc.font('Helvetica-Bold').text('Orang Tua', lbl2X, yy); doc.text(':', col2X, yy);
-      doc.font('Helvetica').text(waliD, val2X, yy, { width: dataW_ }); yy += 18;
-      doc.moveTo(L, yy - 4).lineTo(R, yy - 4).lineWidth(0.5).stroke(); yy += 8;
-      doc.fontSize(10).font('Helvetica-Bold').text('A. Rekap Absensi', L, yy);
-      doc.moveTo(L, doc.y + 2).lineTo(L + 110, doc.y + 2).lineWidth(1).stroke(); yy = doc.y + 8;
-      const colW2 = [140, 55, 55, 55, 55, 55];
-      const headers2 = ['Kegiatan', 'Hadir', 'Izin', 'Sakit', 'Alpa', 'Total'];
-      doc.rect(L, yy - 3, colW2.reduce((a, b) => a + b, 0), 14).fill('#f0f0f0').fillColor('#000');
-      doc.fontSize(8).font('Helvetica-Bold');
-      let xx = L;
-      headers2.forEach((h, i) => { doc.text(h, xx, yy, { width: colW2[i], align: i > 0 ? 'center' : 'left' }); xx += colW2[i]; });
-      yy += 14;
-      doc.moveTo(L, yy - 2).lineTo(L + colW2.reduce((a, b) => a + b, 0), yy - 2).lineWidth(0.5).stroke();
-      doc.font('Helvetica').fontSize(8).fillColor('#000');
-      Object.entries(rekap).forEach(([keg, r]) => {
-        const t = r.H + r.I + r.S + r.A; xx = L;
-        [keg, r.H, r.I, r.S, r.A, t].forEach((c, i) => { doc.text(String(c), xx, yy, { width: colW2[i], align: i > 0 ? 'center' : 'left' }); xx += colW2[i]; }); yy += 13;
-      });
-      xx = L; doc.font('Helvetica-Bold');
-      ['TOTAL', totalH, totalI, totalS, totalA, totalAll].forEach((c, i) => { doc.text(String(c), xx, yy, { width: colW2[i], align: i > 0 ? 'center' : 'left' }); xx += colW2[i]; });
-      yy += 20;
-      if (yy > 680) { doc.addPage(); yy = 40; }
-      doc.fontSize(9).font('Helvetica');
-      const sigW = (R - L) / 3;
-      doc.text(tglStr, L, yy, { width: sigW, align: 'center' }); yy += 14;
-      doc.text('Wali Santri', L, yy, { width: sigW, align: 'center' });
-      doc.text('Wali Kelas', L + sigW, yy, { width: sigW, align: 'center' });
-      doc.text('Kepala Yayasan', L + sigW * 2, yy, { width: sigW, align: 'center' }); yy += 50;
-      doc.moveTo(L + 20, yy - 2).lineTo(L + sigW - 20, yy - 2).stroke();
-      doc.moveTo(L + sigW + 20, yy - 2).lineTo(L + sigW * 2 - 20, yy - 2).stroke();
-      doc.text(kepalaDisplay, L + sigW * 2, yy, { width: sigW, align: 'center' });
-      doc.moveTo(L + sigW * 2 + 20, yy - 2).lineTo(R - 20, yy - 2).stroke();
-      doc.end();
-    });
+  function getKegiatanLabel(kl) {
+    if (!kl) return '-';
+    if (kl.tipe === 'SEKOLAH') return 'Absen Sekolah';
+    if (kl.kegiatan_nama) return kl.kegiatan_nama + ' (' + kl.nama + ')';
+    return kl.tipe.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) + ' (' + kl.nama + ')';
   }
 
-  (async () => {
-    for (const santri of santriList) {
-      const { filename, buffer } = await generateRaportPDF(santri);
-      archive.append(buffer, { name: filename });
+  // Collect all unique kegiatan labels
+  const allKegiatan = new Set();
+  const santriRekap = {};
+  santriList.forEach(s => {
+    let absensiList = db.absensi.filter(a => a.santri_id === s.id);
+    if (req.query.dari) absensiList = absensiList.filter(a => a.tanggal >= req.query.dari);
+    if (req.query.sampai) absensiList = absensiList.filter(a => a.tanggal <= req.query.sampai);
+    const rekap = {};
+    absensiList.forEach(a => {
+      const kl = db.kelompok.find(k => k.id === a.kelompok_id);
+      if (!kl) return;
+      const label = getKegiatanLabel(kl);
+      allKegiatan.add(label);
+      if (!rekap[label]) rekap[label] = { H: 0, I: 0, S: 0, A: 0 };
+      rekap[label][a.status]++;
+    });
+    // Absen Malam
+    let absenMalamList = (db.absen_malam || []).filter(a => a.santri_id === s.id);
+    if (req.query.dari) absenMalamList = absenMalamList.filter(a => a.tanggal >= req.query.dari);
+    if (req.query.sampai) absenMalamList = absenMalamList.filter(a => a.tanggal <= req.query.sampai);
+    if (absenMalamList.length) {
+      rekap['Absen Malam'] = { H: 0, I: 0, S: 0, A: 0 };
+      absenMalamList.forEach(a => rekap['Absen Malam'][a.status]++);
+      allKegiatan.add('Absen Malam');
     }
-    archive.finalize();
-  })();
+    santriRekap[s.id] = { santri: s, rekap };
+  });
+
+  const kegiatanList = Array.from(allKegiatan).sort();
+
+  // Buat Excel
+  const wb = new ExcelJS.Workbook();
+  wb.creator = appName;
+
+  // Sheet 1: Rekap Semua Santri
+  const ws = wb.addWorksheet('Rekap Semua');
+  ws.mergeCells('A1:' + String.fromCharCode(65 + kegiatanList.length * 4) + '1');
+  ws.getCell('A1').value = appName + ' - REKAP RAPOR SEMUA SANTRI';
+  ws.getCell('A1').font = { bold: true, size: 14 };
+  ws.getCell('A1').alignment = { horizontal: 'center' };
+
+  // Header row
+  let col = 1;
+  ws.getCell(3, col++).value = 'No';
+  ws.getCell(3, col++).value = 'Nama Santri';
+  ws.getCell(3, col++).value = 'Asrama';
+  kegiatanList.forEach(k => {
+    ws.getCell(3, col++).value = k + ' (H)';
+    ws.getCell(3, col++).value = k + ' (I)';
+    ws.getCell(3, col++).value = k + ' (S)';
+    ws.getCell(3, col++).value = k + ' (A)';
+  });
+  ws.getCell(3, col++).value = 'Total H';
+  ws.getCell(3, col++).value = 'Total I';
+  ws.getCell(3, col++).value = 'Total S';
+  ws.getCell(3, col++).value = 'Total A';
+  // Style header
+  for (let c = 1; c < col; c++) {
+    ws.getCell(3, c).font = { bold: true, size: 8 };
+    ws.getCell(3, c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F5E9' } };
+    ws.getCell(3, c).alignment = { horizontal: 'center', wrapText: true };
+  }
+
+  // Data rows
+  let row = 4;
+  santriList.forEach((s, idx) => {
+    const kamar = db.kamar.find(k => k.id === s.kamar_id);
+    const { rekap } = santriRekap[s.id];
+    let c = 1;
+    ws.getCell(row, c++).value = idx + 1;
+    ws.getCell(row, c++).value = s.nama;
+    ws.getCell(row, c++).value = kamar ? kamar.nama : '-';
+    let totalH = 0, totalI = 0, totalS = 0, totalA = 0;
+    kegiatanList.forEach(k => {
+      const r = rekap[k] || { H: 0, I: 0, S: 0, A: 0 };
+      ws.getCell(row, c++).value = r.H;
+      ws.getCell(row, c++).value = r.I;
+      ws.getCell(row, c++).value = r.S;
+      ws.getCell(row, c++).value = r.A;
+      totalH += r.H; totalI += r.I; totalS += r.S; totalA += r.A;
+    });
+    ws.getCell(row, c++).value = totalH;
+    ws.getCell(row, c++).value = totalI;
+    ws.getCell(row, c++).value = totalS;
+    ws.getCell(row, c++).value = totalA;
+    row++;
+  });
+
+  // Column widths
+  ws.getColumn(1).width = 5;
+  ws.getColumn(2).width = 20;
+  ws.getColumn(3).width = 15;
+  for (let c = 4; c < col; c++) ws.getColumn(c).width = 8;
+
+  // Per-santri sheets
+  santriList.forEach(s => {
+    const kamar = db.kamar.find(k => k.id === s.kamar_id);
+    const { rekap } = santriRekap[s.id];
+    const sheetName = s.nama.substring(0, 31); // Excel max 31 chars
+    const ws2 = wb.addWorksheet(sheetName);
+    ws2.mergeCells('A1:F1'); ws2.getCell('A1').value = appName; ws2.getCell('A1').font = { bold: true, size: 12 }; ws2.getCell('A1').alignment = { horizontal: 'center' };
+    ws2.getCell('A3').value = 'Nama'; ws2.getCell('A3').font = { bold: true }; ws2.getCell('B3').value = ': ' + s.nama;
+    ws2.getCell('A4').value = 'Asrama'; ws2.getCell('A4').font = { bold: true }; ws2.getCell('B4').value = ': ' + (kamar ? kamar.nama : '-');
+    ws2.getCell('A6').value = 'Kegiatan'; ws2.getCell('B6').value = 'H'; ws2.getCell('C6').value = 'I'; ws2.getCell('D6').value = 'S'; ws2.getCell('E6').value = 'A'; ws2.getCell('F6').value = 'Total';
+    ['A6','B6','C6','D6','E6','F6'].forEach(c => { ws2.getCell(c).font = { bold: true }; });
+    let r = 7;
+    Object.entries(rekap).forEach(([keg, v]) => {
+      ws2.getCell('A' + r).value = keg;
+      ws2.getCell('B' + r).value = v.H;
+      ws2.getCell('C' + r).value = v.I;
+      ws2.getCell('D' + r).value = v.S;
+      ws2.getCell('E' + r).value = v.A;
+      ws2.getCell('F' + r).value = v.H + v.I + v.S + v.A;
+      r++;
+    });
+    ws2.getColumn(1).width = 30;
+  });
+
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename=raport-semua-santri.xlsx');
+  await wb.xlsx.write(res);
+  res.end();
 });
+
+// ── Raport Santri ───────────────────────────────────────
 
 // ── Raport Santri ───────────────────────────────────────
 app.get('/api/raport/:santri_id', authenticate, (req, res) => {
@@ -1396,6 +1405,75 @@ app.get('/api/raport/:santri_id', authenticate, (req, res) => {
       return { ...c, guru_nama: u ? u.nama : '-' };
     }).sort((a, b) => b.tanggal.localeCompare(a.tanggal))
   });
+});
+
+// ── Export Raport Excel (Per Santri) ────────────────────
+app.get('/api/raport/:santri_id/excel', authenticate, async (req, res) => {
+  const santri = db.santri.find(s => s.id == req.params.santri_id);
+  if (!santri) return res.status(404).json({ message: 'Santri tidak ditemukan' });
+  const kamar = db.kamar.find(k => k.id === santri.kamar_id);
+  let absensiList = db.absensi.filter(a => a.santri_id === santri.id);
+  if (req.query.dari) absensiList = absensiList.filter(a => a.tanggal >= req.query.dari);
+  if (req.query.sampai) absensiList = absensiList.filter(a => a.tanggal <= req.query.sampai);
+  function getKegiatanLabel(kl) {
+    if (!kl) return '-';
+    if (kl.tipe === 'SEKOLAH') return 'Absen Sekolah';
+    if (kl.kegiatan_nama) return kl.kegiatan_nama + ' (' + kl.nama + ')';
+    return kl.tipe.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) + ' (' + kl.nama + ')';
+  }
+  const rekap = {};
+  absensiList.forEach(a => {
+    const kl = db.kelompok.find(k => k.id === a.kelompok_id);
+    if (!kl) return;
+    const label = getKegiatanLabel(kl);
+    if (!rekap[label]) rekap[label] = { H: 0, I: 0, S: 0, A: 0 };
+    rekap[label][a.status]++;
+  });
+  // Absen Malam
+  let absenMalamList = (db.absen_malam || []).filter(a => a.santri_id === santri.id);
+  if (req.query.dari) absenMalamList = absenMalamList.filter(a => a.tanggal >= req.query.dari);
+  if (req.query.sampai) absenMalamList = absenMalamList.filter(a => a.tanggal <= req.query.sampai);
+  if (absenMalamList.length) { rekap['Absen Malam'] = { H: 0, I: 0, S: 0, A: 0 }; absenMalamList.forEach(a => rekap['Absen Malam'][a.status]++); }
+  // Buat Excel
+  const appName = (db.settings && db.settings.app_name) || 'Pesantren';
+  const wb = new ExcelJS.Workbook();
+  wb.creator = appName;
+  const ws = wb.addWorksheet('Raport');
+  // Header
+  ws.mergeCells('A1:F1'); ws.getCell('A1').value = appName; ws.getCell('A1').font = { bold: true, size: 14 }; ws.getCell('A1').alignment = { horizontal: 'center' };
+  ws.mergeCells('A2:F2'); ws.getCell('A2').value = 'RAPOR SANTRI'; ws.getCell('A2').font = { bold: true, size: 12 }; ws.getCell('A2').alignment = { horizontal: 'center' };
+  // Info santri
+  ws.getCell('A4').value = 'Nama Santri'; ws.getCell('A4').font = { bold: true }; ws.getCell('B4').value = ': ' + santri.nama;
+  ws.getCell('A5').value = 'Asrama'; ws.getCell('A5').font = { bold: true }; ws.getCell('B5').value = ': ' + (kamar ? kamar.nama : '-');
+  ws.getCell('A6').value = 'Periode'; ws.getCell('A6').font = { bold: true }; ws.getCell('B6').value = ': ' + (req.query.dari || '-') + ' s/d ' + (req.query.sampai || '-');
+  // Tabel rekap
+  ws.getCell('A8').value = 'Kegiatan'; ws.getCell('B8').value = 'Hadir'; ws.getCell('C8').value = 'Izin'; ws.getCell('D8').value = 'Sakit'; ws.getCell('E8').value = 'Alpa'; ws.getCell('F8').value = 'Total';
+  ['A8','B8','C8','D8','E8','F8'].forEach(c => { ws.getCell(c).font = { bold: true }; ws.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F5E9' } }; });
+  let row = 9;
+  Object.entries(rekap).forEach(([keg, r]) => {
+    const total = r.H + r.I + r.S + r.A;
+    ws.getCell('A' + row).value = keg;
+    ws.getCell('B' + row).value = r.H;
+    ws.getCell('C' + row).value = r.I;
+    ws.getCell('D' + row).value = r.S;
+    ws.getCell('E' + row).value = r.A;
+    ws.getCell('F' + row).value = total;
+    row++;
+  });
+  // Total
+  const totalH = Object.values(rekap).reduce((s, r) => s + r.H, 0);
+  const totalI = Object.values(rekap).reduce((s, r) => s + r.I, 0);
+  const totalS = Object.values(rekap).reduce((s, r) => s + r.S, 0);
+  const totalA = Object.values(rekap).reduce((s, r) => s + r.A, 0);
+  ws.getCell('A' + row).value = 'TOTAL'; ws.getCell('A' + row).font = { bold: true };
+  ws.getCell('B' + row).value = totalH; ws.getCell('C' + row).value = totalI; ws.getCell('D' + row).value = totalS; ws.getCell('E' + row).value = totalA;
+  ws.getCell('F' + row).value = totalH + totalI + totalS + totalA; ws.getCell('F' + row).font = { bold: true };
+  // Column widths
+  ws.columns = [{ width: 30 }, { width: 10 }, { width: 10 }, { width: 10 }, { width: 10 }, { width: 10 }];
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename=raport-' + santri.nama.replace(/\s+/g, '-') + '.xlsx');
+  await wb.xlsx.write(res);
+  res.end();
 });
 
 // ── Export Raport PDF (4-Zone Layout) ───────────────────
