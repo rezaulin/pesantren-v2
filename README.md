@@ -1,6 +1,6 @@
 # Sistem Absensi Pesantren V2
 
-Web app absensi santri berbasis Node.js + Express. Data disimpan di `data.json` (single file database).
+Web app absensi santri berbasis Node.js + Express + MariaDB.
 
 ## Fitur
 
@@ -16,18 +16,25 @@ Web app absensi santri berbasis Node.js + Express. Data disimpan di `data.json` 
 
 ## Persyaratan Server
 
-- **OS:** Ubuntu 20.04+ (atau Linux lain)
-- **Node.js:** v18+ (direkomendasikan v22)
-- **RAM:** minimal 512MB (1GB+ direkomendasikan)
+- **OS:** Ubuntu 20.04+ (atau Debian 11+)
+- **Node.js:** v22+
+- **MariaDB:** 10.3+
+- **RAM:** minimal 1GB
 - **Port:** 3000 (default, bisa diubah)
 
-## Instalasi dari Nol
-
-### 1. Install Node.js
+## One-Click Install
 
 ```bash
-# Install Node.js 22 via NodeSource
-curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+curl -sSL https://raw.githubusercontent.com/rezaulin/pesantren-v2/main/install.sh | bash
+```
+
+Script otomatis install Node.js, MariaDB, PM2, clone repo, buat database, dan start server.
+
+**Default login:** `admin` / `admin123`
+
+📖 Panduan lengkap: [INSTALL.md](./INSTALL.md)
+
+## Manual Install
 sudo apt install -y nodejs
 
 # Verifikasi
