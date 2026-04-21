@@ -14,6 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400;1,700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
 <style>
 /* ==============================
    FAONSI - Modern Pesantren Absensi
@@ -102,7 +103,9 @@
 .dark .sidebar-header{background:linear-gradient(135deg,#0f172a,#1e293b)}
 .dark .sidebar li{border-bottom-color:#334155}
 .dark .sidebar li a{color:#e2e8f0}
+.dark .sidebar li a svg,.dark .sidebar li a i{color:#94a3b8}
 .dark .sidebar li a:hover,.dark .sidebar li a.active{background:rgba(13,148,136,.15);color:#14b8a6}
+.dark .sidebar li a:hover svg,.dark .sidebar li a:hover i,.dark .sidebar li a.active svg,.dark .sidebar li a.active i{color:#14b8a6}
 
 /* Dark: Welcome banner */
 .dark .welcome-banner{background:linear-gradient(135deg,#1e293b 0%,#0f172a 50%,#134e4a 100%)}
@@ -115,10 +118,13 @@
 .dark .stat-card.red{background:linear-gradient(145deg,#450a0a,#1e293b);border-color:#7f1d1d}
 
 /* Dark: Menu items */
-.dark .menu-item{background:#1e293b;border-color:#334155}
-.dark .menu-item:hover{border-color:#14b8a6;box-shadow:0 4px 12px rgba(13,148,136,.2)}
-.dark .menu-icon{background:rgba(13,148,136,.15)}
-.dark .menu-item:hover .menu-icon{background:var(--gradient-primary);box-shadow:0 4px 12px rgba(13,148,136,.3)}
+.dark .menu-item{background:rgba(30,41,59,.6);border-color:rgba(51,65,85,.5);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+.dark .menu-item::before{background:linear-gradient(135deg,rgba(45,212,191,.04) 0%,transparent 60%)}
+.dark .menu-item:hover{border-color:rgba(20,184,166,.5);box-shadow:0 12px 28px rgba(13,148,136,.15),0 4px 10px rgba(0,0,0,.2)}
+.dark .menu-icon{background:rgba(13,148,136,.12)}
+.dark .menu-icon svg,.dark .menu-icon i{color:#2dd4bf}
+.dark .menu-item:hover .menu-icon{background:var(--gradient-primary);box-shadow:0 6px 16px rgba(13,148,136,.35)}
+.dark .menu-item:hover .menu-icon svg,.dark .menu-item:hover .menu-icon i{color:#fff}
 .dark .menu-label{color:#e2e8f0}
 .dark .menu-group-title{color:#94a3b8}
 
@@ -136,9 +142,11 @@
 .dark .quick-action:hover .qa-icon{background:var(--gradient-primary)}
 
 /* Dark: Bottom nav */
-.dark .bottom-nav{background:rgba(30,41,59,.95);border-top-color:#334155}
+.dark .bottom-nav{background:rgba(30,41,59,.88);border-top-color:rgba(51,65,85,.4)}
 .dark .nav-item{color:#64748b}
 .dark .nav-item.active{color:#14b8a6}
+.dark .nav-item.active .nav-icon svg,.dark .nav-item.active .nav-icon i{color:#14b8a6}
+.dark .nav-item:hover .nav-icon svg,.dark .nav-item:hover .nav-icon i{color:#14b8a6}
 
 /* Dark: Tables */
 .dark .table-wrap{background:#1e293b;border-color:#334155}
@@ -222,10 +230,11 @@
 
 /* Dark mode toggle button */
 .dark-toggle{
-  background:none;border:none;color:#fff;font-size:1.15rem;cursor:pointer;
+  background:none;border:none;color:#fff;cursor:pointer;
   width:36px;height:36px;display:flex;align-items:center;justify-content:center;
   border-radius:var(--radius);transition:background .2s,transform .15s;
 }
+.dark-toggle svg,.dark-toggle i{width:18px;height:18px;color:#fff}
 .dark-toggle:hover{background:rgba(255,255,255,.1);transform:scale(1.05)}
 
 body{
@@ -267,9 +276,17 @@ h4,h5,h6,.font-heading{font-family:var(--font-sans);font-weight:600}
 .stat-card{
   border-radius:var(--radius-lg);
   box-shadow:var(--shadow-soft);
-  transition:transform .2s,box-shadow .2s;
+  transition:transform .3s cubic-bezier(.4,0,.2,1),box-shadow .3s;
+  position:relative;
+  overflow:hidden;
 }
-.stat-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-elegant)}
+.stat-card::after{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:var(--gradient-primary);border-radius:var(--radius-lg) var(--radius-lg) 0 0;
+  opacity:0;transition:opacity .3s;
+}
+.stat-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-elegant)}
+.stat-card:hover::after{opacity:1}
 
 .menu-item{
   border-radius:var(--radius-lg);
@@ -438,10 +455,11 @@ h4,h5,h6,.font-heading{font-family:var(--font-sans);font-weight:600}
 .header-title{font-size:1.05rem;font-weight:700;letter-spacing:.3px;background:linear-gradient(135deg,#fff,#94a3b8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .header-right{display:flex;align-items:center;gap:.7rem}
 .header-icon{
-  background:none;border:none;color:#fff;font-size:1.2rem;cursor:pointer;position:relative;
+  background:none;border:none;color:#fff;cursor:pointer;position:relative;
   width:36px;height:36px;display:flex;align-items:center;justify-content:center;
   border-radius:var(--radius);transition:background .2s,transform .15s;
 }
+.header-icon svg,.header-icon i{width:20px;height:20px;color:#fff}
 .header-icon:hover{background:rgba(255,255,255,.1);transform:scale(1.05)}
 .header-icon:active{transform:scale(.95)}
 .notif-badge{
@@ -502,11 +520,13 @@ h4,h5,h6,.font-heading{font-family:var(--font-sans);font-weight:600}
   transition:all .2s cubic-bezier(.4,0,.2,1);border-left:3px solid transparent;
   font-weight:500;
 }
+.sidebar li a svg,.sidebar li a i{width:18px;height:18px;color:var(--text-muted);transition:color .2s}
 .sidebar li a:hover,.sidebar li a.active{
   background:var(--primary-bg);color:var(--primary);
   font-weight:600;border-left-color:var(--primary);
   padding-left:1.4rem;
 }
+.sidebar li a:hover svg,.sidebar li a:hover i,.sidebar li a.active svg,.sidebar li a.active i{color:var(--primary)}
 .overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:150}
 .overlay.active{display:block}
 
@@ -529,7 +549,7 @@ h4,h5,h6,.font-heading{font-family:var(--font-sans);font-weight:600}
 .grid-menu{
   display:grid;
   grid-template-columns:repeat(4,1fr);
-  gap:.6rem;padding:0 .1rem;
+  gap:.65rem;padding:0 .1rem;
   margin-bottom:.8rem;
 }
 .menu-group-title{
@@ -542,40 +562,55 @@ h4,h5,h6,.font-heading{font-family:var(--font-sans);font-weight:600}
 }
 .menu-group-title:first-child{margin-top:0}
 .menu-item{
-  background:#fff;
-  border-radius:16px;
-  padding:.8rem .3rem .65rem;
+  background:rgba(255,255,255,.7);
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+  border-radius:18px;
+  padding:.85rem .3rem .7rem;
   text-align:center;
   cursor:pointer;
-  transition:all .2s cubic-bezier(.4,0,.2,1);
-  display:flex;flex-direction:column;align-items:center;gap:.4rem;
-  border:1px solid var(--border);
-  box-shadow:var(--shadow-sm);
-  min-height:90px;
+  transition:all .3s cubic-bezier(.4,0,.2,1);
+  display:flex;flex-direction:column;align-items:center;gap:.45rem;
+  border:1px solid rgba(226,232,240,.5);
+  box-shadow:0 2px 8px rgba(15,23,42,.04),0 1px 3px rgba(15,23,42,.03);
+  min-height:92px;
+  position:relative;
+  overflow:hidden;
+}
+.menu-item::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(13,148,136,.03) 0%,transparent 60%);
+  opacity:0;transition:opacity .3s;
+  border-radius:inherit;
 }
 .menu-item:hover{
-  transform:translateY(-4px);
-  box-shadow:var(--shadow-md);
-  border-color:var(--primary-light);
+  transform:translateY(-5px) scale(1.02);
+  box-shadow:0 12px 28px rgba(13,148,136,.12),0 4px 10px rgba(15,23,42,.06);
+  border-color:rgba(20,184,166,.4);
 }
-.menu-item:active{transform:scale(.95)}
+.menu-item:hover::before{opacity:1}
+.menu-item:active{transform:translateY(-2px) scale(.97)}
 .menu-icon{
-  font-size:1.6rem;
   width:48px;height:48px;
   display:flex;align-items:center;justify-content:center;
   background:var(--primary-bg);
   border-radius:14px;
-  transition:all .2s cubic-bezier(.4,0,.2,1);
+  transition:all .3s cubic-bezier(.4,0,.2,1);
+  position:relative;
+  z-index:1;
 }
+.menu-icon svg,
+.menu-icon i{width:22px;height:22px;color:var(--primary);transition:color .3s}
 .menu-item:hover .menu-icon{
   background:var(--gradient-primary);
-  transform:scale(1.05);
-  box-shadow:0 4px 12px rgba(13,148,136,.25);
+  transform:scale(1.08);
+  box-shadow:0 6px 16px rgba(13,148,136,.3);
 }
-.menu-item:hover .menu-icon span{filter:grayscale(1) brightness(10)}
+.menu-item:hover .menu-icon svg,
+.menu-item:hover .menu-icon i{color:#fff}
 .menu-label{
-  font-size:.68rem;font-weight:600;color:var(--text);
-  line-height:1.2;
+  font-size:.67rem;font-weight:600;color:var(--text);
+  line-height:1.25;position:relative;z-index:1;
 }
 
 
@@ -584,35 +619,46 @@ h4,h5,h6,.font-heading{font-family:var(--font-sans);font-weight:600}
    ============================ */
 .bottom-nav{
   position:fixed;bottom:0;left:0;right:0;
-  background:rgba(255,255,255,.95);display:flex;justify-content:space-around;align-items:center;
-  height:62px;
-  box-shadow:0 -4px 20px rgba(0,0,0,.06);
+  background:rgba(255,255,255,.88);display:flex;justify-content:space-around;align-items:center;
+  height:64px;
+  box-shadow:0 -2px 24px rgba(0,0,0,.06),0 -1px 4px rgba(0,0,0,.02);
   z-index:100;
-  border-top:1px solid rgba(226,232,240,.6);
-  backdrop-filter:blur(12px);
-  -webkit-backdrop-filter:blur(12px);
+  border-top:1px solid rgba(226,232,240,.4);
+  backdrop-filter:blur(20px) saturate(180%);
+  -webkit-backdrop-filter:blur(20px) saturate(180%);
 }
 .nav-item{
   display:flex;flex-direction:column;align-items:center;
-  gap:2px;padding:.45rem .6rem;
+  gap:3px;padding:.45rem .6rem;
   cursor:pointer;color:var(--text-light);
-  transition:all .2s cubic-bezier(.4,0,.2,1);border:none;background:none;
-  font-size:.62rem;font-weight:600;
+  transition:all .25s cubic-bezier(.4,0,.2,1);border:none;background:none;
+  font-size:.6rem;font-weight:600;
   position:relative;
   border-radius:var(--radius);
-  min-width:52px;
+  min-width:54px;
+  letter-spacing:.2px;
 }
-.nav-item .nav-icon{font-size:1.25rem;transition:transform .2s}
+.nav-item .nav-icon{
+  display:flex;align-items:center;justify-content:center;
+  width:24px;height:24px;
+  transition:transform .25s cubic-bezier(.4,0,.2,1);
+}
+.nav-item .nav-icon svg,
+.nav-item .nav-icon i{width:20px;height:20px;transition:all .25s}
 .nav-item.active{
   color:var(--primary);
 }
-.nav-item.active .nav-icon{transform:scale(1.15)}
+.nav-item.active .nav-icon{transform:scale(1.15) translateY(-1px)}
+.nav-item.active .nav-icon svg,
+.nav-item.active .nav-icon i{color:var(--primary)}
 .nav-item.active::after{
-  content:'';position:absolute;bottom:2px;
+  content:'';position:absolute;bottom:1px;
   width:20px;height:3px;background:var(--gradient-primary);
   border-radius:var(--radius-full);
 }
 .nav-item:hover{color:var(--primary)}
+.nav-item:hover .nav-icon svg,
+.nav-item:hover .nav-icon i{color:var(--primary)}
 
 /* ============================
    CONTENT
@@ -637,8 +683,13 @@ h4,h5,h6,.font-heading{font-family:var(--font-sans);font-weight:600}
 .stat-card:hover{box-shadow:var(--shadow-md);transform:translateY(-2px)}
 .stat-card .num{font-size:1.5rem;font-weight:800;color:var(--primary);letter-spacing:-.5px}
 .stat-card .label{font-size:.68rem;color:var(--text-muted);margin-top:.25rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
-.stat-card .icon{position:absolute;right:8px;top:8px;font-size:1.8rem;opacity:.15;transition:all .3s}
-.stat-card:hover .icon{opacity:.25;transform:scale(1.1) rotate(-5deg)}
+.stat-card .icon{position:absolute;right:8px;top:8px;font-size:1.8rem;opacity:.15;transition:all .3s;display:flex;align-items:center;justify-content:center}
+.stat-card .icon svg,.stat-card .icon i{color:currentColor;width:28px;height:28px}
+.stat-card.blue .icon svg,.stat-card.blue .icon i{color:#0284c7}
+.stat-card.green .icon svg,.stat-card.green .icon i{color:#16a34a}
+.stat-card.orange .icon svg,.stat-card.orange .icon i{color:#ea580c}
+.stat-card.red .icon svg,.stat-card.red .icon i{color:#dc2626}
+.stat-card:hover .icon{opacity:.3;transform:scale(1.1) rotate(-5deg)}
 /* Warna stat cards */
 .stat-card.blue{background:linear-gradient(145deg,#e0f2fe,#fff);border-color:#bae6fd}
 .stat-card.blue .num{color:#0284c7}
@@ -1265,7 +1316,7 @@ tr:hover{background:var(--bg)}
     padding:.35rem .4rem;
     min-width:48px;
   }
-  .nav-item .nav-icon{font-size:1.15rem}
+  .nav-item .nav-icon svg,.nav-item .nav-icon i{width:18px;height:18px}
 
   /* Hide desktop-only elements */
   .desktop-table{display:none!important}
@@ -1369,7 +1420,7 @@ tr:hover{background:var(--bg)}
   <!-- Header -->
   <div class="header">
     <div class="header-left">
-      <button class="header-icon" onclick="toggleSidebar()">☰</button>
+      <button class="header-icon" onclick="toggleSidebar()"><i data-lucide="menu" style="width:20px;height:20px"></i></button>
       <span class="header-title" id="headerTitle">FAONSI</span>
     </div>
     <div class="header-center" id="headerSearchWrap" style="flex:1;max-width:300px;margin:0 .5rem;position:relative">
@@ -1377,8 +1428,8 @@ tr:hover{background:var(--bg)}
       <div id="dashboardSearchResults" style="position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #ddd;border-radius:0 0 10px 10px;max-height:250px;overflow-y:auto;display:none;z-index:200;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
     </div>
     <div class="header-right">
-      <button class="dark-toggle" onclick="toggleDarkMode()" id="darkToggle" title="Mode Gelap">🌙</button>
-      <button class="header-icon" onclick="switchTab('pengumuman')">🔔<span class="notif-badge" id="notifBadge" style="display:none">0</span></button>
+      <button class="dark-toggle" onclick="toggleDarkMode()" id="darkToggle" title="Mode Gelap"><i data-lucide="moon" style="width:18px;height:18px"></i></button>
+      <button class="header-icon" onclick="switchTab('pengumuman')"><i data-lucide="bell" style="width:20px;height:20px"></i><span class="notif-badge" id="notifBadge" style="display:none">0</span></button>
       <div class="profile-pic" id="profilePic">👤</div>
     </div>
   </div>
@@ -1393,7 +1444,7 @@ tr:hover{background:var(--bg)}
         <img id="sidebarLogo" src="" style="width:36px;height:36px;border-radius:8px;object-fit:contain;background:rgba(255,255,255,.15);padding:3px;display:none">
         <h3 id="sidebarTitle">FAONSI</h3>
       </div>
-      <button onclick="toggleSidebar()">✕</button>
+      <button onclick="toggleSidebar()"><i data-lucide="x" style="width:18px;height:18px"></i></button>
     </div>
     <div class="role-badge" id="roleBadge"></div>
     <ul id="navList"></ul>
@@ -1865,16 +1916,16 @@ tr:hover{background:var(--bg)}
 <!-- Bottom Nav -->
 <div class="bottom-nav" id="bottomNav" style="display:none">
   <button class="nav-item active" onclick="switchTab('home')" id="navtab-home">
-    <span class="nav-icon">🏠</span>Beranda
+    <span class="nav-icon"><i data-lucide="home"></i></span>Beranda
   </button>
   <button class="nav-item" onclick="switchTab('absensi')" id="navtab-absensi">
-    <span class="nav-icon">✅</span>Absen
+    <span class="nav-icon"><i data-lucide="check-circle"></i></span>Absen
   </button>
   <button class="nav-item" onclick="switchTab('rekap')" id="navtab-rekap">
-    <span class="nav-icon">📋</span>Rekap
+    <span class="nav-icon"><i data-lucide="clipboard-list"></i></span>Rekap
   </button>
   <button class="nav-item" onclick="toggleSidebar()" id="navtab-more">
-    <span class="nav-icon">☰</span>Lainnya
+    <span class="nav-icon"><i data-lucide="menu"></i></span>Lainnya
   </button>
 </div>
 
@@ -1897,13 +1948,14 @@ let currentTab='home';
 function toggleDarkMode(){
   const isDark=document.documentElement.classList.toggle('dark');
   localStorage.setItem('darkMode',isDark?'1':'0');
-  $('darkToggle').textContent=isDark?'☀️':'🌙';
+  $('darkToggle').innerHTML=isDark?'<i data-lucide="sun" style="width:18px;height:18px"></i>':'<i data-lucide="moon" style="width:18px;height:18px"></i>';
+  if(window.lucide)lucide.createIcons();
 }
 function initDarkMode(){
   if(localStorage.getItem('darkMode')==='1'){
     document.documentElement.classList.add('dark');
     const btn=$('darkToggle');
-    if(btn)btn.textContent='☀️';
+    if(btn)btn.innerHTML='<i data-lucide="sun" style="width:18px;height:18px"></i>';
   }
 }
 // Init dark mode immediately (before page renders)
@@ -1942,113 +1994,112 @@ async function initApp(){
   buildGridMenu();
   loadAppSettings(); // after buildGridMenu so dashboard bg applies
   switchTab('home');
+  if(window.lucide)lucide.createIcons();
 }
 
 function buildNav(){
   const items=[
-    {id:'home',icon:'🏠',label:'Beranda'},
-    {id:'absensi',icon:'✅',label:'Absensi'},
-    {id:'santri',icon:'👨‍🎓',label:'Data Santri'},
-    {id:'kelompok',icon:'🏷️',label:'Kelola Kelompok'},
-    {id:'kamar',icon:'🏠',label:'Kelola Kamar'},
-    {id:'kelas-sekolah',icon:'🏫',label:'Kelola Kelas'},
-    {id:'kegiatan',icon:'📚',label:'Kelola Kegiatan'},
-    {id:'users',icon:'👥',label:'Kelola Pengguna'},
-    {id:'rekap',icon:'📋',label:'Rekap Absensi'},
-    {id:'absenmalam',icon:'🌙',label:'Absen Malam'},
-    {id:'absensekolah',icon:'🏫',label:'Absen Sekolah'},
-    {id:'sensus',icon:'📊',label:'Sensus Santri'},
-    {id:'laporan',icon:'📈',label:'Laporan'},
-    {id:'rekap-ustadz',icon:'👨‍🏫',label:'Rekap Ustadz'},
-    {id:'pengumuman',icon:'📢',label:'Pengumuman'},
-    {id:'pelanggaran',icon:'⚠️',label:'Pelanggaran'},
-    {id:'catatan',icon:'📝',label:'Catatan Guru'},
-    {id:'raport',icon:'📜',label:'Raport Santri'},
-    {id:'pengaturan',icon:'⚙️',label:'Pengaturan'},
+    {id:'home',icon:'home',label:'Beranda'},
+    {id:'absensi',icon:'check-circle',label:'Absensi'},
+    {id:'santri',icon:'graduation-cap',label:'Data Santri'},
+    {id:'kelompok',icon:'tags',label:'Kelola Kelompok'},
+    {id:'kamar',icon:'bed-double',label:'Kelola Kamar'},
+    {id:'kelas-sekolah',icon:'school',label:'Kelola Kelas'},
+    {id:'kegiatan',icon:'book-open',label:'Kelola Kegiatan'},
+    {id:'users',icon:'users',label:'Kelola Pengguna'},
+    {id:'rekap',icon:'clipboard-list',label:'Rekap Absensi'},
+    {id:'absenmalam',icon:'moon',label:'Absen Malam'},
+    {id:'absensekolah',icon:'school',label:'Absen Sekolah'},
+    {id:'sensus',icon:'bar-chart-3',label:'Sensus Santri'},
+    {id:'laporan',icon:'trending-up',label:'Laporan'},
+    {id:'rekap-ustadz',icon:'user-check',label:'Rekap Ustadz'},
+    {id:'pengumuman',icon:'megaphone',label:'Pengumuman'},
+    {id:'pelanggaran',icon:'alert-triangle',label:'Pelanggaran'},
+    {id:'catatan',icon:'file-text',label:'Catatan Guru'},
+    {id:'raport',icon:'file-badge',label:'Raport Santri'},
+    {id:'pengaturan',icon:'settings',label:'Pengaturan'},
   ];
   if(me.role==='wali'){
-    // Wali: menu terbatas
     const waliItems=[
-      {id:'home',icon:'🏠',label:'Beranda'},
-      {id:'walirekap',icon:'📋',label:'Rekap Absensi Anak'},
-      {id:'walicatatan',icon:'📝',label:'Catatan Guru'},
-      {id:'pengumuman',icon:'📢',label:'Pengumuman'},
-      {id:'logout',icon:'🚪',label:'Keluar'},
+      {id:'home',icon:'home',label:'Beranda'},
+      {id:'walirekap',icon:'clipboard-list',label:'Rekap Absensi Anak'},
+      {id:'walicatatan',icon:'file-text',label:'Catatan Guru'},
+      {id:'pengumuman',icon:'megaphone',label:'Pengumuman'},
+      {id:'logout',icon:'log-out',label:'Keluar'},
     ];
     renderNavList(waliItems);
   } else if(me.role!=='admin'){
-    // ustadz only sees limited items
     const allowed=['home','absensi','santri','rekap','absenmalam','absensekolah','pengumuman','raport','pelanggaran','catatan'];
     const filtered=items.filter(i=>allowed.includes(i.id));
-    filtered.push({id:'logout',icon:'🚪',label:'Keluar'});
+    filtered.push({id:'logout',icon:'log-out',label:'Keluar'});
     renderNavList(filtered);
   } else {
-    items.push({id:'logout',icon:'🚪',label:'Keluar'});
+    items.push({id:'logout',icon:'log-out',label:'Keluar'});
     renderNavList(items);
   }
 }
 
 function renderNavList(items){
-  $('navList').innerHTML=items.map(i=>'<li><a href="#" onclick="'+(i.id==='logout'?'logout();return false':'navigateSidebar(\''+i.id+'\');return false')+'" id="nav-'+i.id+'">'+i.icon+' '+i.label+'</a></li>').join('');
+  $('navList').innerHTML=items.map(i=>'<li><a href="#" onclick="'+(i.id==='logout'?'logout();return false':'navigateSidebar(\''+i.id+'\');return false')+'" id="nav-'+i.id+'"><i data-lucide="'+i.icon+'" style="width:18px;height:18px;margin-right:4px"></i>'+i.label+'</a></li>').join('');
+  if(window.lucide)lucide.createIcons();
 }
 
 function buildGridMenu(){
   const adminGroups=[
-    {title:'📋 Operasional Harian',items:[
-      {id:'absensi',icon:'✅',label:'Absensi'},
-      {id:'absenmalam',icon:'🌙',label:'Absen Malam'},
-      {id:'absensekolah',icon:'🏫',label:'Absen Sekolah'},
-      {id:'pelanggaran',icon:'⚠️',label:'Pelanggaran'},
-      {id:'catatan',icon:'📝',label:'Catatan Guru'},
+    {title:'Operasional Harian',items:[
+      {id:'absensi',icon:'check-circle',label:'Absensi'},
+      {id:'absenmalam',icon:'moon',label:'Absen Malam'},
+      {id:'absensekolah',icon:'school',label:'Absen Sekolah'},
+      {id:'pelanggaran',icon:'alert-triangle',label:'Pelanggaran'},
+      {id:'catatan',icon:'file-text',label:'Catatan Guru'},
     ]},
-    {title:'📁 Data Master',items:[
-      {id:'santri',icon:'👨‍🎓',label:'Data Santri'},
-      {id:'kelompok',icon:'🏷️',label:'Kelompok'},
-      {id:'kamar',icon:'🏠',label:'Kelola Kamar'},
-      {id:'kelas-sekolah',icon:'🏫',label:'Kelola Kelas'},
-      {id:'kegiatan',icon:'📚',label:'Kegiatan'},
-      {id:'jadwal',icon:'📅',label:'Jadwal'},
-      {id:'users',icon:'👥',label:'Pengguna'},
-      {id:'sensus',icon:'📊',label:'Sensus'},
+    {title:'Data Master',items:[
+      {id:'santri',icon:'graduation-cap',label:'Data Santri'},
+      {id:'kelompok',icon:'tags',label:'Kelompok'},
+      {id:'kamar',icon:'bed-double',label:'Kelola Kamar'},
+      {id:'kelas-sekolah',icon:'school',label:'Kelola Kelas'},
+      {id:'kegiatan',icon:'book-open',label:'Kegiatan'},
+      {id:'jadwal',icon:'calendar',label:'Jadwal'},
+      {id:'users',icon:'users',label:'Pengguna'},
+      {id:'sensus',icon:'bar-chart-3',label:'Sensus'},
     ]},
-    {title:'📊 Laporan & Rekap',items:[
-      {id:'rekap',icon:'📋',label:'Rekap Absensi'},
-      {id:'raport',icon:'📜',label:'Raport Santri'},
-      {id:'rekap-ustadz',icon:'👨‍🏫',label:'Rekap Ustadz'},
-      {id:'laporan',icon:'📈',label:'Laporan'},
-      {id:'exportpdf',icon:'📥',label:'Export PDF'},
+    {title:'Laporan & Rekap',items:[
+      {id:'rekap',icon:'clipboard-list',label:'Rekap Absensi'},
+      {id:'raport',icon:'file-badge',label:'Raport Santri'},
+      {id:'rekap-ustadz',icon:'user-check',label:'Rekap Ustadz'},
+      {id:'laporan',icon:'trending-up',label:'Laporan'},
+      {id:'exportpdf',icon:'download',label:'Export PDF'},
     ]},
     {title:'',items:[
-      {id:'pengumuman',icon:'📢',label:'Pengumuman'},
-      {id:'pengaturan',icon:'⚙️',label:'Pengaturan'},
+      {id:'pengumuman',icon:'megaphone',label:'Pengumuman'},
+      {id:'pengaturan',icon:'settings',label:'Pengaturan'},
     ]},
   ];
   const ustadzGroups=[
-    {title:'📋 Operasional Harian',items:[
-      {id:'jadwal-hari-ini',icon:'📅',label:'Jadwal Hari Ini'},
-      {id:'absensi',icon:'✅',label:'Absensi'},
-      {id:'absenmalam',icon:'🌙',label:'Absen Malam'},
-      {id:'absensekolah',icon:'🏫',label:'Absen Sekolah'},
-      {id:'pelanggaran',icon:'⚠️',label:'Pelanggaran'},
-      {id:'catatan',icon:'📝',label:'Catatan Guru'},
+    {title:'Operasional Harian',items:[
+      {id:'jadwal-hari-ini',icon:'calendar',label:'Jadwal Hari Ini'},
+      {id:'absensi',icon:'check-circle',label:'Absensi'},
+      {id:'absenmalam',icon:'moon',label:'Absen Malam'},
+      {id:'absensekolah',icon:'school',label:'Absen Sekolah'},
+      {id:'pelanggaran',icon:'alert-triangle',label:'Pelanggaran'},
+      {id:'catatan',icon:'file-text',label:'Catatan Guru'},
     ]},
-    {title:'📊 Laporan & Rekap',items:[
-      {id:'rekap',icon:'📋',label:'Rekap Absensi'},
-      {id:'raport',icon:'📜',label:'Raport Santri'},
+    {title:'Laporan & Rekap',items:[
+      {id:'rekap',icon:'clipboard-list',label:'Rekap Absensi'},
+      {id:'raport',icon:'file-badge',label:'Raport Santri'},
     ]},
     {title:'',items:[
-      {id:'pengumuman',icon:'📢',label:'Pengumuman'},
+      {id:'pengumuman',icon:'megaphone',label:'Pengumuman'},
     ]},
   ];
   const waliGroups=[
     {title:'',items:[
-      {id:'walirekap',icon:'📋',label:'Rekap Absensi Anak'},
-      {id:'walicatatan',icon:'📝',label:'Catatan Guru'},
-      {id:'pengumuman',icon:'📢',label:'Pengumuman'},
+      {id:'walirekap',icon:'clipboard-list',label:'Rekap Absensi Anak'},
+      {id:'walicatatan',icon:'file-text',label:'Catatan Guru'},
+      {id:'pengumuman',icon:'megaphone',label:'Pengumuman'},
     ]},
   ];
   const groups=me.role==='admin'?adminGroups:me.role==='wali'?waliGroups:ustadzGroups;
-  // Items yang masuk section "Lainnya" di dashboard
   const lainnyaIds=['pelanggaran','pengumuman','sensus','exportpdf'];
   function renderGroups(container,excludePengaturan,excludeLainnya){
     let html='';
@@ -2061,7 +2112,7 @@ function buildGridMenu(){
       html+='<div class="grid-menu">';
       items.forEach(m=>{
         html+='<div class="menu-item" onclick="handleMenuClick(\''+m.id+'\')">';
-        html+='<div class="menu-icon">'+m.icon+'</div>';
+        html+='<div class="menu-icon"><i data-lucide="'+m.icon+'"></i></div>';
         html+='<div class="menu-label">'+m.label+'</div>';
         html+='</div>';
       });
@@ -2072,24 +2123,24 @@ function buildGridMenu(){
   renderGroups('fullMenu',false,false);
   renderGroups('dashboardMenuGrid',true,true);
 
-  // Section "Lainnya" di dashboard
   const lainnyaItems=[
-    {id:'pelanggaran',icon:'⚠️',label:'Input Pelanggaran'},
-    {id:'pengumuman',icon:'📢',label:'Pengumuman'},
-    {id:'sensus',icon:'📊',label:'Sensus'},
-    {id:'exportpdf',icon:'📥',label:'Export PDF'},
+    {id:'pelanggaran',icon:'alert-triangle',label:'Input Pelanggaran'},
+    {id:'pengumuman',icon:'megaphone',label:'Pengumuman'},
+    {id:'sensus',icon:'bar-chart-3',label:'Sensus'},
+    {id:'exportpdf',icon:'download',label:'Export PDF'},
   ];
   if(me.role!=='wali'){
-    let lHtml='<div class="menu-group-title">📌 Lainnya</div><div class="grid-menu">';
+    let lHtml='<div class="menu-group-title">Lainnya</div><div class="grid-menu">';
     lainnyaItems.forEach(m=>{
       lHtml+='<div class="menu-item" onclick="handleMenuClick(\''+m.id+'\')">';
-      lHtml+='<div class="menu-icon">'+m.icon+'</div>';
+      lHtml+='<div class="menu-icon"><i data-lucide="'+m.icon+'"></i></div>';
       lHtml+='<div class="menu-label">'+m.label+'</div>';
       lHtml+='</div>';
     });
     lHtml+='</div>';
     $('dashboardMenuGrid').innerHTML+=lHtml;
   }
+  if(window.lucide)lucide.createIcons();
 }
 
 function handleMenuClick(id){
@@ -2111,6 +2162,8 @@ function switchTab(tab){
   if(navtab)navtab.classList.add('active');
   // Load data
   loadPageData(tab);
+  // Re-render Lucide icons for any dynamically created content
+  if(window.lucide)setTimeout(()=>lucide.createIcons(),50);
 }
 
 function navigateSidebar(page){
@@ -2167,10 +2220,11 @@ async function loadDashboard(){
   }
   // Stats 2x2 (mobile) / 4 kolom (desktop)
   $('statsContainer').innerHTML=
-    '<div class="stat-card blue"><span class="icon">👥</span><div class="num">'+(d.total_santri||0)+'</div><div class="label">Total Santri</div></div>'+
-    '<div class="stat-card green"><span class="icon">✅</span><div class="num">'+(d.hadir_hari_ini||0)+'</div><div class="label">Hadir Hari Ini</div></div>'+
-    '<div class="stat-card orange"><span class="icon">📝</span><div class="num">'+(d.izin_sakit||0)+'</div><div class="label">Izin/Sakit</div></div>'+
-    '<div class="stat-card red"><span class="icon">❌</span><div class="num">'+(d.alfa||0)+'</div><div class="label">Alfa</div></div>';
+    '<div class="stat-card blue"><div class="icon"><i data-lucide="users" style="width:28px;height:28px"></i></div><div class="num">'+(d.total_santri||0)+'</div><div class="label">Total Santri</div></div>'+
+    '<div class="stat-card green"><div class="icon"><i data-lucide="check-circle" style="width:28px;height:28px"></i></div><div class="num">'+(d.hadir_hari_ini||0)+'</div><div class="label">Hadir Hari Ini</div></div>'+
+    '<div class="stat-card orange"><div class="icon"><i data-lucide="file-text" style="width:28px;height:28px"></i></div><div class="num">'+(d.izin_sakit||0)+'</div><div class="label">Izin/Sakit</div></div>'+
+    '<div class="stat-card red"><div class="icon"><i data-lucide="x-circle" style="width:28px;height:28px"></i></div><div class="num">'+(d.alfa||0)+'</div><div class="label">Alfa</div></div>';
+  if(window.lucide)lucide.createIcons();
 
   // Dashboard widgets
   let wHtml='';
@@ -3500,7 +3554,7 @@ async function loadSensus(){
   santri.forEach(s=>{if(s.kamar_id&&kamarMap[s.kamar_id])kamarMap[s.kamar_id].count++});
   const total=santri.length;
   const aktif=santri.filter(s=>s.status==='aktif').length;
-  let html='<div class="stats"><div class="stat-card blue"><span class="icon">👥</span><div class="num">'+total+'</div><div class="label">Total Santri</div></div><div class="stat-card green"><span class="icon">✅</span><div class="num">'+aktif+'</div><div class="label">Aktif</div></div><div class="stat-card orange"><span class="icon">📋</span><div class="num">'+(total-aktif)+'</div><div class="label">Nonaktif/Lulus</div></div><div class="stat-card blue"><span class="icon">🏠</span><div class="num">'+kamar.length+'</div><div class="label">Total Kamar</div></div></div>';
+  let html='<div class="stats"><div class="stat-card blue"><div class="icon"><i data-lucide="users" style="width:28px;height:28px"></i></div><div class="num">'+total+'</div><div class="label">Total Santri</div></div><div class="stat-card green"><div class="icon"><i data-lucide="check-circle" style="width:28px;height:28px"></i></div><div class="num">'+aktif+'</div><div class="label">Aktif</div></div><div class="stat-card orange"><div class="icon"><i data-lucide="clipboard-list" style="width:28px;height:28px"></i></div><div class="num">'+(total-aktif)+'</div><div class="label">Nonaktif/Lulus</div></div><div class="stat-card blue"><div class="icon"><i data-lucide="bed-double" style="width:28px;height:28px"></i></div><div class="num">'+kamar.length+'</div><div class="label">Total Kamar</div></div></div>';
   html+='<div class="section-title">Per Kamar</div><div class="table-wrap"><table><thead><tr><th>Kamar</th><th>Jumlah Santri</th><th>Kapasitas</th></tr></thead><tbody>';
   kamar.forEach(k=>{
     const cap=k.kapasitas||0;
@@ -3508,6 +3562,7 @@ async function loadSensus(){
   });
   html+='</tbody></table></div>';
   $('sensusContent').innerHTML=html;
+  if(window.lucide)lucide.createIcons();
 }
 
 // Laporan
@@ -3515,10 +3570,11 @@ async function loadLaporan(){
   const d=await api('/api/dashboard');
   if(!d)return;
   $('laporanStats').innerHTML=
-    '<div class="stat-card blue"><span class="icon">👥</span><div class="num">'+(d.total_santri||0)+'</div><div class="label">Total Santri</div></div>'+
-    '<div class="stat-card blue"><span class="icon">🏠</span><div class="num">'+(d.total_kamar||0)+'</div><div class="label">Total Kamar</div></div>'+
-    '<div class="stat-card green"><span class="icon">✅</span><div class="num">'+(d.hadir_hari_ini||0)+'</div><div class="label">Hadir Hari Ini</div></div>'+
-    '<div class="stat-card red"><span class="icon">❌</span><div class="num">'+(d.alfa||0)+'</div><div class="label">Alfa</div></div>';
+    '<div class="stat-card blue"><div class="icon"><i data-lucide="users" style="width:28px;height:28px"></i></div><div class="num">'+(d.total_santri||0)+'</div><div class="label">Total Santri</div></div>'+
+    '<div class="stat-card blue"><div class="icon"><i data-lucide="bed-double" style="width:28px;height:28px"></i></div><div class="num">'+(d.total_kamar||0)+'</div><div class="label">Total Kamar</div></div>'+
+    '<div class="stat-card green"><div class="icon"><i data-lucide="check-circle" style="width:28px;height:28px"></i></div><div class="num">'+(d.hadir_hari_ini||0)+'</div><div class="label">Hadir Hari Ini</div></div>'+
+    '<div class="stat-card red"><div class="icon"><i data-lucide="x-circle" style="width:28px;height:28px"></i></div><div class="num">'+(d.alfa||0)+'</div><div class="label">Alfa</div></div>';
+  if(window.lucide)lucide.createIcons();
 }
 
 // Rekap Ustadz
