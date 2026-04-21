@@ -862,72 +862,49 @@ app.get('/api/absensi/kelompok/:kelompok_id', authenticate, (req, res) => {
 });
 app.post('/api/absensi/bulk', authenticate, (req, res) => {
   if (req.user.role === 'wali') return res.status(403).json({ message: 'Wali tidak bisa mengubah absensi' });
-  const { tanggal, kegiatan_id, kelompok_id, sesi_id, jam_sesi, items } = req.body;
-  if (!tanggal || !items) return res.status(400).json({ message: 'Data tidak lengkap (tanggal, items wajib)' });
-  if (!kelompok_id && !kegiatan_id) return res.status(400).json({ message: 'kelompok_id atau kegiatan_id wajib' });
+  const { tanggal, kelompok_id, items } = req.body;
+  if (!tanggal || !items || !items.length) return res.status(400).json({ message: 'Data tidak lengkap (tanggal, items wajib)' });
+  const finalKelompokId = kelompok_id ? parseInt(kelompok_id) : null;
+  if (!finalKelompokId) return res.status(400).json({ message: 'kelompok_id wajib' });
+
+  // ── Validasi: sudah diabsen? ──
+  const existing = db.absensi.find(a => a.kelompok_id === finalKelompokId && a.tanggal === tanggal);
+  if (existing) {
+    const kl = db.kelompok.find(k => k.id === finalKelompokId);
+    return res.status(409).json({ message: `Sudah diabsen hari ini (${kl ? kl.nama : 'kelompok ' + finalKelompokId})`, already_done: true });
+  }
 
   // ── Validasi Jadwal (untuk ustadz, bukan admin) ──
   const todayWIB = getWaktuWIB().toISOString().slice(0, 10);
   if (req.user.role !== 'admin' && tanggal === todayWIB) {
     const hari = getHariIni();
-    const kelId = kelompok_id ? parseInt(kelompok_id) : null;
-    if (kelId) {
-      const jadwalMatch = db.jadwal_umum.find(j =>
-        j.kelompok_id === kelId && j.ustadz_username === req.user.username && j.hari === hari
-      );
-      if (!jadwalMatch) return res.status(403).json({ message: 'Anda tidak memiliki jadwal untuk kelompok ini hari ini' });
-      if (!cekJadwalValid(jadwalMatch.jam_mulai, jadwalMatch.jam_selesai))
-        return res.status(403).json({ message: `Di luar jam jadwal (${jadwalMatch.jam_mulai}-${jadwalMatch.jam_selesai}, toleransi 1 jam)` });
-    }
+    const jadwalMatch = db.jadwal_umum.find(j =>
+      j.kelompok_id === finalKelompokId && j.ustadz_username === req.user.username && j.hari === hari
+    );
+    if (!jadwalMatch) return res.status(403).json({ message: 'Anda tidak memiliki jadwal untuk kelompok ini hari ini' });
+    if (!cekJadwalValid(jadwalMatch.jam_mulai, jadwalMatch.jam_selesai))
+      return res.status(403).json({ message: `Di luar jam jadwal (${jadwalMatch.jam_mulai}-${jadwalMatch.jam_selesai}, toleransi 1 jam)` });
   }
 
-  // Resolve kelompok_id dari kegiatan_id jika tidak dikirim
-  let finalKelompokId = kelompok_id ? parseInt(kelompok_id) : null;
-  if (!finalKelompokId && kegiatan_id) {
-    const kg = db.kegiatan.find(k => k.id == kegiatan_id);
-    if (kg) {
-      const kl = db.kelompok.find(k => k.nama === kg.nama && k.tipe === 'KEGIATAN');
-      if (kl) finalKelompokId = kl.id;
-    }
-  }
+  // ── Buat sesi baru ──
   if (!db.absensi_sesi) db.absensi_sesi = [];
-  // ── Sesi: replace jika sudah ada (transparan) ──
-  const sesiMatch = (s) => {
-    if (sesi_id) return s.ustadz_username === req.user.username && s.kelompok_id === finalKelompokId && s.tanggal === tanggal && s.id === parseInt(sesi_id);
-    if (finalKelompokId) return s.ustadz_username === req.user.username && s.kelompok_id === finalKelompokId && s.tanggal === tanggal;
-    return s.ustadz_username === req.user.username && s.kegiatan_id == kegiatan_id && s.tanggal === tanggal;
-  };
-  const oldSesi = db.absensi_sesi.find(sesiMatch);
-  let currentSesiId;
-  if (oldSesi) {
-    // Hapus absensi lama milik sesi ini
-    if (sesi_id) {
-      db.absensi = db.absensi.filter(a => !(a.sesi_id === parseInt(sesi_id) && a.tanggal === tanggal));
-    } else if (finalKelompokId) {
-      db.absensi = db.absensi.filter(a => !(a.kelompok_id === finalKelompokId && a.tanggal === tanggal && a.recorded_by === req.user.id));
-    } else {
-      db.absensi = db.absensi.filter(a => !(a.kegiatan_id == kegiatan_id && a.tanggal === tanggal && a.recorded_by === req.user.id));
-    }
-    oldSesi.created_at = new Date().toISOString();
-    currentSesiId = oldSesi.id;
-  } else {
-    // Buat sesi baru
-    const newSesi = { id: nextId(db.absensi_sesi), ustadz_username: req.user.username, kegiatan_id: kegiatan_id ? parseInt(kegiatan_id) : 0, kelompok_id: finalKelompokId, tanggal, jam_sesi: jam_sesi || null, created_at: new Date().toISOString() };
-    db.absensi_sesi.push(newSesi);
-    currentSesiId = newSesi.id;
-  }
-  // Insert absensi baru (fresh, bukan upsert) — link ke sesi
+  const newSesi = { id: nextId(db.absensi_sesi), ustadz_username: req.user.username, kelompok_id: finalKelompokId, tanggal, created_at: new Date().toISOString() };
+  db.absensi_sesi.push(newSesi);
+
+  // ── Insert absensi ──
   items.forEach(item => {
     db.absensi.push({
       id: nextId(db.absensi), santri_id: item.santri_id,
-      kegiatan_id: kegiatan_id ? parseInt(kegiatan_id) : null,
       kelompok_id: finalKelompokId,
-      sesi_id: currentSesiId,
+      sesi_id: newSesi.id,
       tanggal, status: item.status, keterangan: item.keterangan || '',
       recorded_by: req.user.id, created_at: new Date().toISOString()
     });
   });
-  saveDB(db); res.json({ message: 'Absensi tersimpan' });
+
+  // ── Simpan langsung (bukan debounce) ──
+  try { fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2)); } catch(e) { console.error('Save error:', e); }
+  res.json({ message: 'Absensi tersimpan' });
 });
 
 // ── Absen Malam (Tabel Terpisah) ───────────────────────

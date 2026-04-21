@@ -2480,6 +2480,14 @@ async function selectKelompokCard(kelompokId,nama){
   $('absensiPlaceholder').style.display='none';
   renderAbsensiGridDinamis();
   updateCounterDinamis();
+  // Cek: sudah diabsen?
+  const sudahDiabsen=data.santri.some(s=>s.status);
+  if(sudahDiabsen){
+    const btn=document.querySelector('#absensiStep3 .btn-primary');
+    if(btn){btn.disabled=true;btn.textContent='✅ Sudah Diabsen';btn.style.opacity='.6'}
+    const indicator=$('saveIndicator');
+    if(indicator){indicator.innerHTML='<div style="background:#fef3c7;border:1px solid #f59e0b;color:#92400e;padding:1rem;border-radius:14px;text-align:center;font-weight:600">✅ Absensi sudah tersimpan untuk tanggal ini</div>';indicator.style.display=''}
+  }
 }
 
 function absensiBackToKegiatan(){
@@ -2545,7 +2553,14 @@ async function simpanAbsensiDinamis(){
   const items=absenDinamisData.filter(s=>s.status).map(s=>({santri_id:s.santri_id,status:s.status,keterangan:s.keterangan||''}));
   if(!items.length)return toast('Belum ada yang diabsen');
   const res=await api('/api/absensi/bulk',{method:'POST',body:JSON.stringify({tanggal,kelompok_id:absenDinamisKelompokId,items})});
-  if(res.message){
+  if(res.already_done){
+    // Sudah diabsen sebelumnya
+    toast('⚠️ '+res.message);
+    const btn=document.querySelector('#absensiStep3 .btn-primary');
+    if(btn){btn.disabled=true;btn.textContent='✅ Sudah Diabsen';btn.style.opacity='.6'}
+    const indicator=$('saveIndicator');
+    if(indicator){indicator.innerHTML='<div style="background:#fef3c7;border:1px solid #f59e0b;color:#92400e;padding:1rem;border-radius:14px;text-align:center;font-weight:600">⚠️ '+res.message+'</div>';indicator.style.display=''}
+  }else if(res.message){
     toast('✅ '+res.message);
     // Tampilkan banner sukses
     const indicator=$('saveIndicator');
@@ -2557,11 +2572,9 @@ async function simpanAbsensiDinamis(){
     // Disable tombol simpan
     const btn=document.querySelector('#absensiStep3 .btn-primary');
     if(btn){btn.disabled=true;btn.textContent='✅ Sudah Tersimpan';btn.style.opacity='.6'}
-  } else {
+  }else{
     toast(res.message||'Gagal menyimpan');
   }
-  // Refresh
-  absensiOnKelompokChange();
 }
 /* ================= END PHASE 3: ABSENSI DINAMIS ================= */
 
