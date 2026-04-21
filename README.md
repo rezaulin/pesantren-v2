@@ -120,34 +120,163 @@ Default: `pesantren-secret-key`. Untuk production, ubah di `server.js` line 14 a
 JWT_SECRET=rahasia-baru-yang-panjang pm2 restart pesantren-v2
 ```
 
-### Reverse Proxy (Nginx + Domain)
+### Menautkan ke Domain
+
+#### Langkah 1: Siapkan DNS
+
+**Jika pakai Cloudflare:**
+1. Login ke [Cloudflare Dashboard](https://dash.cloudflare.com)
+2. Pilih domain → **DNS** → **Records**
+3. Tambah record:
+   ```
+   Type: A
+   Name: pesantren  (atau subdomain yang diinginkan)
+   IPv4: YOUR_SERVER_IP
+   Proxy: ON (ikon awan oranye)
+   TTL: Auto
+   ```
+4. Klik **Save**
+
+**Jika pakai registrar lain (Namecheap, GoDaddy, dll):**
+1. Login ke panel domain
+2. Cari menu **DNS Management** / **DNS Records**
+3. Tambah record:
+   ```
+   Type: A
+   Host: pesantren  (atau @ untuk root domain)
+   Value: YOUR_SERVER_IP
+   TTL: 300
+   ```
+
+#### Langkah 2: Install Nginx
+
+```bash
+sudo apt update
+sudo apt install -y nginx
+sudo systemctl enable nginx
+sudo systemctl start nginx
+```
+
+#### Langkah 3: Konfigurasi Nginx
+
+Buat file config:
+
+```bash
+sudo nano /etc/nginx/sites-available/pesantren
+```
+
+Isi:
 
 ```nginx
 server {
-    server_name pesantren.example.com;
+    listen 80;
+    server_name pesantren.example.com;  # GANTI dengan domain lo
+
+    # Max upload size (untuk import Excel)
+    client_max_body_size 10M;
+
+    # Gzip compression
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml;
 
     location / {
-        proxy_pass http://localhost:3000;
+        proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
         proxy_cache_bypass $http_upgrade;
     }
 }
 ```
 
-```bash
-sudo apt install nginx
-sudo nano /etc/nginx/sites-available/pesantren
-sudo ln -s /etc/nginx/sites-available/pesantren /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
+Enable config:
 
-# SSL (optional)
-sudo apt install certbot python3-certbot-nginx
+```bash
+sudo ln -s /etc/nginx/sites-available/pesantren /etc/nginx/sites-enabled/
+sudo nginx -t          # Cek syntax, harus bilang "ok"
+sudo systemctl reload nginx
+```
+
+#### Langkah 4: Install SSL (HTTPS)
+
+**Jika pakai Cloudflare (Proxy ON = orange cloud):**
+```bash
+# Cloudflare Flexible SSL sudah otomatis
+# Tapi lebih aman pakai Full (Strict) — install cert juga:
+sudo apt install -y certbot python3-certbot-nginx
 sudo certbot --nginx -d pesantren.example.com
+```
+
+**Jika tanpa Cloudflare:**
+```bash
+sudo apt install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d pesantren.example.com
+```
+
+Certbot akan otomatis:
+- Dapat SSL certificate dari Let's Encrypt
+- Update Nginx config untuk HTTPS
+- Set auto-renewal
+
+Verifikasi auto-renewal:
+```bash
+sudo certbot renew --dry-run
+```
+
+#### Langkah 5: Verify
+
+```bash
+# Cek Nginx jalan
+curl -I http://localhost
+
+# Cek app lewat Nginx
+curl -I http://localhost -H "Host: pesantren.example.com"
+
+# Cek dari luar
+curl -I https://pesantren.example.com
+```
+
+Buka browser: `https://pesantren.example.com`
+
+#### Troubleshooting Domain
+
+**DNS belum propagate:**
+```bash
+# Cek DNS sudah resolve ke IP bener
+dig pesantren.example.com
+nslookup pesantren.example.com
+# Tunggu 5-30 menit, maksimal 24 jam
+```
+
+**502 Bad Gateway:**
+```bash
+# Pastikan app jalan
+pm2 list
+pm2 logs pesantren-v2
+
+# Pastikan Nginx bisa reach port 3000
+curl http://localhost:3000
+```
+
+**SSL error:**
+```bash
+# Cek certificate
+sudo certbot certificates
+
+# Renew manual kalau expired
+sudo certbot renew
+```
+
+**Cloudflare 522 (Connection timed out):**
+- Pastikan firewall buka port 80 dan 443
+```bash
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw reload
 ```
 
 ## Backup & Restore
