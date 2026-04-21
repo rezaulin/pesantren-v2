@@ -281,26 +281,29 @@ app.get('/api/wali/rekap', authenticate, (req, res) => {
 app.get('/api/users', authenticate, requireAdmin, (req, res) => {
   res.json(db.users.map(u => ({ id: u.id, username: u.username, nama: u.nama, role: u.role, created_at: u.created_at })));
 });
-app.post('/api/users', authenticate, requireAdmin, (req, res) => {
+app.post('/api/users', authenticate, requireAdmin, async (req, res) => {
   const { username, password, role, nama } = req.body;
   if (!username || !password || !nama) return res.status(400).json({ message: 'Semua field wajib' });
   if (db.users.find(u => u.username === username)) return res.status(400).json({ message: 'Username sudah ada' });
-  const user = { id: nextId(db.users), username, password_hash: bcrypt.hashSync(password, 10), role: role || 'ustadz', nama, created_at: new Date().toISOString() };
-  db.users.push(user); saveDB(db); res.json({ message: 'User ditambahkan', user: { id: user.id, username: user.username, nama: user.nama, role: user.role } });
+  const user = { username, password_hash: bcrypt.hashSync(password, 10), role: role || 'ustadz', nama, created_at: toDatetime() };
+  const row = await dbInsert('users', user, db.users);
+  res.json({ message: 'User ditambahkan', user: { id: row.id, username: row.username, nama: row.nama, role: row.role } });
 });
-app.put('/api/users/:id', authenticate, requireAdmin, (req, res) => {
+app.put('/api/users/:id', authenticate, requireAdmin, async (req, res) => {
   const user = db.users.find(u => u.id == req.params.id);
   if (!user) return res.status(404).json({ message: 'User tidak ditemukan' });
   const { username, password, role, nama } = req.body;
-  if (username) user.username = username;
-  if (nama) user.nama = nama;
-  if (role) user.role = role;
-  if (password) user.password_hash = bcrypt.hashSync(password, 10);
-  saveDB(db); res.json({ message: 'User diupdate' });
+  const updates = {};
+  if (username) updates.username = username;
+  if (nama) updates.nama = nama;
+  if (role) updates.role = role;
+  if (password) updates.password_hash = bcrypt.hashSync(password, 10);
+  if (Object.keys(updates).length) await dbUpdate('users', user.id, updates, db.users);
+  res.json({ message: 'User diupdate' });
 });
-app.delete('/api/users/:id', authenticate, requireAdmin, (req, res) => {
+app.delete('/api/users/:id', authenticate, requireAdmin, async (req, res) => {
   if (req.user.id == req.params.id) return res.status(400).json({ message: 'Tidak bisa hapus diri sendiri' });
-  db.users = db.users.filter(u => u.id != req.params.id); saveDB(db);
+  await dbDelete('users', parseInt(req.params.id), db.users);
   res.json({ message: 'User dihapus' });
 });
 
@@ -310,19 +313,21 @@ app.get('/api/kamar', authenticate, (req, res) => {
     ...k, jumlah_santri: db.santri.filter(s => s.kamar_id === k.id && s.status === 'aktif').length
   })));
 });
-app.post('/api/kamar', authenticate, requireAdmin, (req, res) => {
+app.post('/api/kamar', authenticate, requireAdmin, async (req, res) => {
   const { nama, kapasitas, pengurus } = req.body;
   if (!nama) return res.status(400).json({ message: 'Nama wajib' });
-  const k = { id: nextId(db.kamar), nama, kapasitas: kapasitas || 10, pengurus: pengurus || '' };
-  db.kamar.push(k); saveDB(db); res.json(k);
+  const k = { nama, kapasitas: kapasitas || 10, pengurus: pengurus || '' };
+  const row = await dbInsert('kamar', k, db.kamar); res.json(row);
 });
-app.put('/api/kamar/:id', authenticate, requireAdmin, (req, res) => {
+app.put('/api/kamar/:id', authenticate, requireAdmin, async (req, res) => {
   const k = db.kamar.find(x => x.id == req.params.id);
   if (!k) return res.status(404).json({ message: 'Kamar tidak ditemukan' });
-  Object.assign(k, req.body); saveDB(db); res.json({ message: 'Kamar diupdate' });
+  const { id, ...updates } = req.body;
+  if (Object.keys(updates).length) await dbUpdate('kamar', k.id, updates, db.kamar);
+  res.json({ message: 'Kamar diupdate' });
 });
-app.delete('/api/kamar/:id', authenticate, requireAdmin, (req, res) => {
-  db.kamar = db.kamar.filter(k => k.id != req.params.id); saveDB(db);
+app.delete('/api/kamar/:id', authenticate, requireAdmin, async (req, res) => {
+  await dbDelete('kamar', parseInt(req.params.id), db.kamar);
   res.json({ message: 'Kamar dihapus' });
 });
 
@@ -333,47 +338,51 @@ app.get('/api/kelas-sekolah', authenticate, (req, res) => {
     ...k, jumlah_santri: db.santri.filter(s => s.kelas_sekolah === k.nama && s.status === 'aktif').length
   })));
 });
-app.post('/api/kelas-sekolah', authenticate, requireAdmin, (req, res) => {
+app.post('/api/kelas-sekolah', authenticate, requireAdmin, async (req, res) => {
   const { nama } = req.body;
   if (!nama) return res.status(400).json({ message: 'Nama kelas wajib' });
   if (!db.kelas_sekolah) db.kelas_sekolah = [];
   if (db.kelas_sekolah.find(k => k.nama.toLowerCase() === nama.toLowerCase())) {
     return res.status(400).json({ message: 'Kelas sudah ada' });
   }
-  const k = { id: nextId(db.kelas_sekolah), nama, created_at: new Date().toISOString() };
-  db.kelas_sekolah.push(k); saveDB(db); res.json(k);
+  const k = { nama, created_at: toDatetime() };
+  const row = await dbInsert('kelas_sekolah', k, db.kelas_sekolah); res.json(row);
 });
-app.put('/api/kelas-sekolah/:id', authenticate, requireAdmin, (req, res) => {
+app.put('/api/kelas-sekolah/:id', authenticate, requireAdmin, async (req, res) => {
   if (!db.kelas_sekolah) db.kelas_sekolah = [];
   const k = db.kelas_sekolah.find(x => x.id == req.params.id);
   if (!k) return res.status(404).json({ message: 'Kelas tidak ditemukan' });
   const oldNama = k.nama;
-  Object.assign(k, req.body);
-  // Update all santri with old kelas_sekolah
   if (req.body.nama && req.body.nama !== oldNama) {
+    await pool.execute('UPDATE santri SET kelas_sekolah = ? WHERE kelas_sekolah = ?', [req.body.nama, oldNama]);
     db.santri.forEach(s => { if (s.kelas_sekolah === oldNama) s.kelas_sekolah = req.body.nama; });
   }
-  saveDB(db); res.json({ message: 'Kelas diupdate' });
+  const { id, ...updates } = req.body;
+  if (Object.keys(updates).length) await dbUpdate('kelas_sekolah', k.id, updates, db.kelas_sekolah);
+  res.json({ message: 'Kelas diupdate' });
 });
-app.delete('/api/kelas-sekolah/:id', authenticate, requireAdmin, (req, res) => {
+app.delete('/api/kelas-sekolah/:id', authenticate, requireAdmin, async (req, res) => {
   if (!db.kelas_sekolah) db.kelas_sekolah = [];
   const k = db.kelas_sekolah.find(x => x.id == req.params.id);
   if (k) {
-    // Clear kelas_sekolah from santri
+    await pool.execute('UPDATE santri SET kelas_sekolah = ? WHERE kelas_sekolah = ?', ['', k.nama]);
     db.santri.forEach(s => { if (s.kelas_sekolah === k.nama) s.kelas_sekolah = ''; });
-    db.kelas_sekolah = db.kelas_sekolah.filter(x => x.id != req.params.id);
+    await dbDelete('kelas_sekolah', k.id, db.kelas_sekolah);
   }
-  saveDB(db); res.json({ message: 'Kelas dihapus' });
+  res.json({ message: 'Kelas dihapus' });
 });
-app.post('/api/kelas-sekolah/pindah', authenticate, requireAdmin, (req, res) => {
+app.post('/api/kelas-sekolah/pindah', authenticate, requireAdmin, async (req, res) => {
   const { santri_ids, kelas_nama } = req.body;
   if (!santri_ids || !santri_ids.length) return res.status(400).json({ message: 'Pilih santri dulu' });
   let count = 0;
-  santri_ids.forEach(sid => {
+  for (const sid of santri_ids) {
     const s = db.santri.find(x => x.id === sid);
-    if (s) { s.kelas_sekolah = kelas_nama || ''; count++; }
-  });
-  saveDB(db); res.json({ message: count + ' santri dipindahkan ke ' + (kelas_nama || '-') });
+    if (s) { 
+      await pool.execute('UPDATE santri SET kelas_sekolah = ? WHERE id = ?', [kelas_nama || '', sid]);
+      s.kelas_sekolah = kelas_nama || ''; count++; 
+    }
+  }
+  res.json({ message: count + ' santri dipindahkan ke ' + (kelas_nama || '-') });
 });
 
 // ── Santri ─────────────────────────────────────────────
@@ -479,20 +488,18 @@ app.post('/api/santri/import-excel', authenticate, requireAdmin, upload.single('
         username = baseUsername + '_' + usernameCount[baseUsername];
       }
 
-      // Create wali user
-      const waliUser = {
-        id: nextId(db.users),
+      // Create wali user in DB
+      const waliUserData = {
         username,
         password_hash: bcrypt.hashSync('wali123', 10),
         role: 'wali',
         nama: namaWali || '-',
-        created_at: new Date().toISOString()
+        created_at: toDatetime()
       };
-      db.users.push(waliUser);
+      const waliUser = await dbInsert('users', waliUserData, db.users);
 
-      // Create santri
-      const santri = {
-        id: nextId(db.santri),
+      // Create santri in DB
+      const santriData = {
         nama: namaSantri,
         kamar_id: null,
         status: 'aktif',
@@ -504,10 +511,10 @@ app.post('/api/santri/import-excel', authenticate, requireAdmin, upload.single('
         alamat: alamat,
         wali_user_id: waliUser.id,
         wali_nama: namaWali || '-',
-        extra: {},
-        created_at: new Date().toISOString()
+        extra: JSON.stringify({}),
+        created_at: toDatetime()
       };
-      db.santri.push(santri);
+      const santri = await dbInsert('santri', santriData, db.santri);
 
       results.push({
         nama: namaSantri,
@@ -517,8 +524,6 @@ app.post('/api/santri/import-excel', authenticate, requireAdmin, upload.single('
         password: 'wali123'
       });
     }
-
-    saveDB(db);
     res.json({ message: `Berhasil import ${results.length} santri`, data: results });
   } catch (err) {
     console.error('Import Excel error:', err);
@@ -530,48 +535,51 @@ app.post('/api/santri/import-excel', authenticate, requireAdmin, upload.single('
 app.get('/api/kegiatan', authenticate, (req, res) => {
   res.json(db.kegiatan);
 });
-app.post('/api/kegiatan', authenticate, requireAdmin, (req, res) => {
+app.post('/api/kegiatan', authenticate, requireAdmin, async (req, res) => {
   const { nama, kategori, urutan_tampil } = req.body;
   if (!nama) return res.status(400).json({ message: 'Nama kegiatan wajib' });
-  const k = { id: nextId(db.kegiatan), nama, kategori: kategori || 'pokok', urutan_tampil: urutan_tampil || 0, created_at: new Date().toISOString() };
-  db.kegiatan.push(k);
+  const kData = { nama, kategori: kategori || 'pokok', urutan_tampil: urutan_tampil || 0, created_at: toDatetime() };
+  const k = await dbInsert('kegiatan', kData, db.kegiatan);
   if (k.kategori === 'pokok') {
-    // Pokok: kelompok tipe = nama kegiatan sendiri (jadi tipe absensi tersendiri)
     if (!db.kelompok.find(kl => kl.nama === nama && kl.tipe === nama)) {
-      db.kelompok.push({ id: nextId(db.kelompok), nama, tipe: nama, kegiatan_nama: nama, created_at: new Date().toISOString() });
+      await dbInsert('kelompok', { nama, tipe: nama, kegiatan_nama: nama, created_at: toDatetime() }, db.kelompok);
     }
   } else {
-    // Tambahan: kelompok tipe KEGIATAN (sub-grup system)
     if (!db.kelompok.find(kl => kl.nama === nama && kl.tipe === 'KEGIATAN')) {
-      db.kelompok.push({ id: nextId(db.kelompok), nama, tipe: 'KEGIATAN', kegiatan_nama: nama, created_at: new Date().toISOString() });
+      await dbInsert('kelompok', { nama, tipe: 'KEGIATAN', kegiatan_nama: nama, created_at: toDatetime() }, db.kelompok);
     }
   }
-  saveDB(db); res.json(k);
+  res.json(k);
 });
-app.put('/api/kegiatan/:id', authenticate, requireAdmin, (req, res) => {
+app.put('/api/kegiatan/:id', authenticate, requireAdmin, async (req, res) => {
   const k = db.kegiatan.find(x => x.id == req.params.id);
   if (!k) return res.status(404).json({ message: 'Kegiatan tidak ditemukan' });
   const oldNama = k.nama;
   const oldKategori = k.kategori;
-  if (req.body.nama) k.nama = req.body.nama;
-  if (req.body.kategori !== undefined) k.kategori = req.body.kategori;
-  if (req.body.urutan_tampil !== undefined) k.urutan_tampil = parseInt(req.body.urutan_tampil) || 0;
+  const updates = {};
+  if (req.body.nama) updates.nama = req.body.nama;
+  if (req.body.kategori !== undefined) updates.kategori = req.body.kategori;
+  if (req.body.urutan_tampil !== undefined) updates.urutan_tampil = parseInt(req.body.urutan_tampil) || 0;
+  if (Object.keys(updates).length) await dbUpdate('kegiatan', k.id, updates, db.kegiatan);
   // Sync kelompok: rename tipe/kegiatan_nama
   if (req.body.nama && req.body.nama !== oldNama) {
     if (oldKategori === 'pokok') {
-      // Pokok: kelompok tipe = nama kegiatan → update tipe
-      db.kelompok.filter(kl => kl.tipe === oldNama).forEach(kl => { kl.tipe = k.nama; kl.kegiatan_nama = k.nama; });
+      for (const kl of db.kelompok.filter(kl => kl.tipe === oldNama)) {
+        await dbUpdate('kelompok', kl.id, { tipe: k.nama, kegiatan_nama: k.nama }, db.kelompok);
+      }
     } else {
-      // Tambahan: kelompok tipe KEGIATAN, kegiatan_nama = nama → update kegiatan_nama + nama
-      db.kelompok.filter(kl => kl.tipe === 'KEGIATAN' && kl.kegiatan_nama === oldNama).forEach(kl => { kl.kegiatan_nama = k.nama; if (kl.nama === oldNama) kl.nama = k.nama; });
+      for (const kl of db.kelompok.filter(kl => kl.tipe === 'KEGIATAN' && kl.kegiatan_nama === oldNama)) {
+        const u = { kegiatan_nama: k.nama };
+        if (kl.nama === oldNama) u.nama = k.nama;
+        await dbUpdate('kelompok', kl.id, u, db.kelompok);
+      }
     }
   }
-  saveDB(db); res.json({ message: 'Kegiatan diupdate' });
+  res.json({ message: 'Kegiatan diupdate' });
 });
-app.delete('/api/kegiatan/:id', authenticate, requireAdmin, (req, res) => {
+app.delete('/api/kegiatan/:id', authenticate, requireAdmin, async (req, res) => {
   const k = db.kegiatan.find(x => x.id == req.params.id);
   if (k) {
-    // Hapus kelompok terkait + relasi anggota
     let kelompokIds;
     if (k.kategori === 'pokok') {
       kelompokIds = db.kelompok.filter(kl => kl.tipe === k.nama).map(kl => kl.id);
@@ -579,11 +587,15 @@ app.delete('/api/kegiatan/:id', authenticate, requireAdmin, (req, res) => {
       kelompokIds = db.kelompok.filter(kl => kl.tipe === 'KEGIATAN' && kl.kegiatan_nama === k.nama).map(kl => kl.id);
     }
     if (kelompokIds.length) {
-      db.kelompok = db.kelompok.filter(kl => !kelompokIds.includes(kl.id));
-      db.santri_kelompok = db.santri_kelompok.filter(sk => !kelompokIds.includes(sk.kelompok_id));
+      for (const kid of kelompokIds) {
+        await dbDelete('kelompok', kid, db.kelompok);
+      }
+      for (const sk of db.santri_kelompok.filter(sk => kelompokIds.includes(sk.kelompok_id))) {
+        await dbDelete('santri_kelompok', sk.id || sk.santri_id + '-' + sk.kelompok_id, db.santri_kelompok);
+      }
     }
   }
-  db.kegiatan = db.kegiatan.filter(x => x.id != req.params.id); saveDB(db);
+  await dbDelete('kegiatan', parseInt(req.params.id), db.kegiatan);
   res.json({ message: 'Kegiatan dihapus' });
 });
 
@@ -599,26 +611,28 @@ app.get('/api/jadwal-umum', authenticate, (req, res) => {
     return { ...j, ustadz_nama: u ? u.nama : j.ustadz_username, kelompok_nama: kl ? kl.nama : '-', kegiatan_nama: kg ? kg.nama : (kl ? kl.kegiatan_nama : '-') };
   }));
 });
-app.post('/api/jadwal-umum', authenticate, requireAdmin, (req, res) => {
+app.post('/api/jadwal-umum', authenticate, requireAdmin, async (req, res) => {
   const { kelompok_id, ustadz_username, hari, jam_mulai, jam_selesai } = req.body;
   if (!kelompok_id || !ustadz_username || !hari || !jam_mulai || !jam_selesai)
     return res.status(400).json({ message: 'Semua field wajib diisi' });
-  const j = { id: nextId(db.jadwal_umum), kelompok_id: parseInt(kelompok_id), ustadz_username, hari, jam_mulai, jam_selesai, created_at: new Date().toISOString() };
-  db.jadwal_umum.push(j); saveDB(db); res.json(j);
+  const jData = { kelompok_id: parseInt(kelompok_id), ustadz_username, hari, jam_mulai, jam_selesai, created_at: toDatetime() };
+  const j = await dbInsert('jadwal_umum', jData, db.jadwal_umum); res.json(j);
 });
-app.put('/api/jadwal-umum/:id', authenticate, requireAdmin, (req, res) => {
+app.put('/api/jadwal-umum/:id', authenticate, requireAdmin, async (req, res) => {
   const j = db.jadwal_umum.find(x => x.id == req.params.id);
   if (!j) return res.status(404).json({ message: 'Jadwal tidak ditemukan' });
-  if (req.body.kelompok_id) j.kelompok_id = parseInt(req.body.kelompok_id);
-  if (req.body.ustadz_username) j.ustadz_username = req.body.ustadz_username;
-  if (req.body.hari) j.hari = req.body.hari;
-  if (req.body.jam_mulai) j.jam_mulai = req.body.jam_mulai;
-  if (req.body.jam_selesai) j.jam_selesai = req.body.jam_selesai;
-  saveDB(db); res.json({ message: 'Jadwal diupdate' });
+  const updates = {};
+  if (req.body.kelompok_id) updates.kelompok_id = parseInt(req.body.kelompok_id);
+  if (req.body.ustadz_username) updates.ustadz_username = req.body.ustadz_username;
+  if (req.body.hari) updates.hari = req.body.hari;
+  if (req.body.jam_mulai) updates.jam_mulai = req.body.jam_mulai;
+  if (req.body.jam_selesai) updates.jam_selesai = req.body.jam_selesai;
+  if (Object.keys(updates).length) await dbUpdate('jadwal_umum', j.id, updates, db.jadwal_umum);
+  res.json({ message: 'Jadwal diupdate' });
 });
-app.delete('/api/jadwal-umum/:id', authenticate, requireAdmin, (req, res) => {
-  db.jadwal_umum = db.jadwal_umum.filter(x => x.id != req.params.id);
-  saveDB(db); res.json({ message: 'Jadwal dihapus' });
+app.delete('/api/jadwal-umum/:id', authenticate, requireAdmin, async (req, res) => {
+  await dbDelete('jadwal_umum', parseInt(req.params.id), db.jadwal_umum);
+  res.json({ message: 'Jadwal dihapus' });
 });
 
 // ── Jadwal Sekolah ─────────────────────────────────────
@@ -631,27 +645,29 @@ app.get('/api/jadwal-sekolah', authenticate, (req, res) => {
     return { ...j, ustadz_nama: u ? u.nama : j.ustadz_username };
   }));
 });
-app.post('/api/jadwal-sekolah', authenticate, requireAdmin, (req, res) => {
+app.post('/api/jadwal-sekolah', authenticate, requireAdmin, async (req, res) => {
   const { kelas, mata_pelajaran, ustadz_username, hari, jam_mulai, jam_selesai } = req.body;
   if (!kelas || !mata_pelajaran || !ustadz_username || !hari || !jam_mulai || !jam_selesai)
     return res.status(400).json({ message: 'Semua field wajib diisi' });
-  const j = { id: nextId(db.jadwal_sekolah), kelas, mata_pelajaran, ustadz_username, hari, jam_mulai, jam_selesai, created_at: new Date().toISOString() };
-  db.jadwal_sekolah.push(j); saveDB(db); res.json(j);
+  const jData = { kelas, mata_pelajaran, ustadz_username, hari, jam_mulai, jam_selesai, created_at: toDatetime() };
+  const j = await dbInsert('jadwal_sekolah', jData, db.jadwal_sekolah); res.json(j);
 });
-app.put('/api/jadwal-sekolah/:id', authenticate, requireAdmin, (req, res) => {
+app.put('/api/jadwal-sekolah/:id', authenticate, requireAdmin, async (req, res) => {
   const j = db.jadwal_sekolah.find(x => x.id == req.params.id);
   if (!j) return res.status(404).json({ message: 'Jadwal tidak ditemukan' });
-  if (req.body.kelas) j.kelas = req.body.kelas;
-  if (req.body.mata_pelajaran) j.mata_pelajaran = req.body.mata_pelajaran;
-  if (req.body.ustadz_username) j.ustadz_username = req.body.ustadz_username;
-  if (req.body.hari) j.hari = req.body.hari;
-  if (req.body.jam_mulai) j.jam_mulai = req.body.jam_mulai;
-  if (req.body.jam_selesai) j.jam_selesai = req.body.jam_selesai;
-  saveDB(db); res.json({ message: 'Jadwal diupdate' });
+  const updates = {};
+  if (req.body.kelas) updates.kelas = req.body.kelas;
+  if (req.body.mata_pelajaran) updates.mata_pelajaran = req.body.mata_pelajaran;
+  if (req.body.ustadz_username) updates.ustadz_username = req.body.ustadz_username;
+  if (req.body.hari) updates.hari = req.body.hari;
+  if (req.body.jam_mulai) updates.jam_mulai = req.body.jam_mulai;
+  if (req.body.jam_selesai) updates.jam_selesai = req.body.jam_selesai;
+  if (Object.keys(updates).length) await dbUpdate('jadwal_sekolah', j.id, updates, db.jadwal_sekolah);
+  res.json({ message: 'Jadwal diupdate' });
 });
-app.delete('/api/jadwal-sekolah/:id', authenticate, requireAdmin, (req, res) => {
-  db.jadwal_sekolah = db.jadwal_sekolah.filter(x => x.id != req.params.id);
-  saveDB(db); res.json({ message: 'Jadwal dihapus' });
+app.delete('/api/jadwal-sekolah/:id', authenticate, requireAdmin, async (req, res) => {
+  await dbDelete('jadwal_sekolah', parseInt(req.params.id), db.jadwal_sekolah);
+  res.json({ message: 'Jadwal dihapus' });
 });
 
 // ── Jadwal Aktif (untuk ustadz buka absen) ─────────────
@@ -722,29 +738,33 @@ app.get('/api/kelompok', authenticate, (req, res) => {
     jumlah_anggota: db.santri_kelompok.filter(sk => sk.kelompok_id === k.id && sk.status === 'aktif').length
   })));
 });
-app.post('/api/kelompok', authenticate, requireAdmin, (req, res) => {
+app.post('/api/kelompok', authenticate, requireAdmin, async (req, res) => {
   const { nama, tipe, kegiatan_nama } = req.body;
   if (!nama || !tipe) return res.status(400).json({ message: 'Nama & tipe wajib' });
-  // Cek duplikat: nama + tipe + kegiatan_nama (untuk KEGIATAN, nama bisa sama beda kegiatan)
   if (db.kelompok.find(k => k.nama.toLowerCase() === nama.toLowerCase() && k.tipe === tipe && (k.kegiatan_nama || '') === (kegiatan_nama || '')))
     return res.status(400).json({ message: 'Kelompok dengan nama & tipe ini sudah ada' });
-  const k = { id: nextId(db.kelompok), nama, tipe, kegiatan_nama: kegiatan_nama || null, created_at: new Date().toISOString() };
-  db.kelompok.push(k); saveDB(db); res.json(k);
+  const kData = { nama, tipe, kegiatan_nama: kegiatan_nama || null, created_at: toDatetime() };
+  const k = await dbInsert('kelompok', kData, db.kelompok); res.json(k);
 });
-app.put('/api/kelompok/:id', authenticate, requireAdmin, (req, res) => {
+app.put('/api/kelompok/:id', authenticate, requireAdmin, async (req, res) => {
   const k = db.kelompok.find(x => x.id == req.params.id);
   if (!k) return res.status(404).json({ message: 'Kelompok tidak ditemukan' });
-  if (req.body.nama) k.nama = req.body.nama;
-  if (req.body.tipe) k.tipe = req.body.tipe;
-  if (req.body.kegiatan_nama !== undefined) k.kegiatan_nama = req.body.kegiatan_nama || null;
-  saveDB(db); res.json({ message: 'Kelompok diupdate' });
+  const updates = {};
+  if (req.body.nama) updates.nama = req.body.nama;
+  if (req.body.tipe) updates.tipe = req.body.tipe;
+  if (req.body.kegiatan_nama !== undefined) updates.kegiatan_nama = req.body.kegiatan_nama || null;
+  if (Object.keys(updates).length) await dbUpdate('kelompok', k.id, updates, db.kelompok);
+  res.json({ message: 'Kelompok diupdate' });
 });
-app.delete('/api/kelompok/:id', authenticate, requireAdmin, (req, res) => {
+app.delete('/api/kelompok/:id', authenticate, requireAdmin, async (req, res) => {
   const id = parseInt(req.params.id);
   // Soft-delete: set semua anggota jadi inactive
-  db.santri_kelompok.forEach(sk => { if (sk.kelompok_id === id) sk.status = 'inactive'; });
-  db.kelompok = db.kelompok.filter(k => k.id !== id);
-  saveDB(db); res.json({ message: 'Kelompok dihapus (anggota di-set inactive)' });
+  for (const sk of db.santri_kelompok.filter(sk => sk.kelompok_id === id)) {
+    await pool.execute('UPDATE santri_kelompok SET status = ? WHERE santri_id = ? AND kelompok_id = ?', ['inactive', sk.santri_id, id]);
+    sk.status = 'inactive';
+  }
+  await dbDelete('kelompok', id, db.kelompok);
+  res.json({ message: 'Kelompok dihapus (anggota di-set inactive)' });
 });
 
 // Get all unique tipe values (built-in + dynamic from kegiatan pokok)
@@ -788,43 +808,44 @@ app.get('/api/santri-kelompok', authenticate, (req, res) => {
     };
   }));
 });
-app.post('/api/santri-kelompok', authenticate, requireAdmin, (req, res) => {
+app.post('/api/santri-kelompok', authenticate, requireAdmin, async (req, res) => {
   const { santri_id, kelompok_id } = req.body;
   if (!santri_id || !kelompok_id) return res.status(400).json({ message: 'santri_id & kelompok_id wajib' });
-  // Cek duplikat aktif
   const existing = db.santri_kelompok.find(sk => sk.santri_id == santri_id && sk.kelompok_id == kelompok_id && sk.status === 'aktif');
   if (existing) return res.status(400).json({ message: 'Santri sudah anggota kelompok ini' });
-  const sk = { santri_id: parseInt(santri_id), kelompok_id: parseInt(kelompok_id), status: 'aktif', created_at: new Date().toISOString() };
-  db.santri_kelompok.push(sk); saveDB(db); res.json(sk);
+  const skData = { santri_id: parseInt(santri_id), kelompok_id: parseInt(kelompok_id), status: 'aktif', created_at: toDatetime() };
+  const sk = await dbInsert('santri_kelompok', skData, db.santri_kelompok); res.json(sk);
 });
 // Bulk add: masukkan banyak santri ke 1 kelompok
-app.post('/api/santri-kelompok/bulk', authenticate, requireAdmin, (req, res) => {
+app.post('/api/santri-kelompok/bulk', authenticate, requireAdmin, async (req, res) => {
   const { kelompok_id, santri_ids } = req.body;
   if (!kelompok_id || !santri_ids || !Array.isArray(santri_ids))
     return res.status(400).json({ message: 'kelompok_id & santri_ids (array) wajib' });
   let added = 0;
-  santri_ids.forEach(sid => {
+  for (const sid of santri_ids) {
     const existing = db.santri_kelompok.find(sk => sk.santri_id == sid && sk.kelompok_id == kelompok_id && sk.status === 'aktif');
     if (!existing) {
-      db.santri_kelompok.push({ santri_id: parseInt(sid), kelompok_id: parseInt(kelompok_id), status: 'aktif', created_at: new Date().toISOString() });
+      await dbInsert('santri_kelompok', { santri_id: parseInt(sid), kelompok_id: parseInt(kelompok_id), status: 'aktif', created_at: toDatetime() }, db.santri_kelompok);
       added++;
     }
-  });
-  saveDB(db); res.json({ message: `${added} santri ditambahkan`, added });
+  }
+  res.json({ message: `${added} santri ditambahkan`, added });
 });
-app.put('/api/santri-kelompok/deactivate', authenticate, requireAdmin, (req, res) => {
+app.put('/api/santri-kelompok/deactivate', authenticate, requireAdmin, async (req, res) => {
   const { santri_id, kelompok_id } = req.body;
   if (!santri_id || !kelompok_id) return res.status(400).json({ message: 'santri_id & kelompok_id wajib' });
   const sk = db.santri_kelompok.find(x => x.santri_id == santri_id && x.kelompok_id == kelompok_id && x.status === 'aktif');
   if (!sk) return res.status(404).json({ message: 'Relasi tidak ditemukan' });
+  await pool.execute('UPDATE santri_kelompok SET status = ? WHERE santri_id = ? AND kelompok_id = ?', ['inactive', santri_id, kelompok_id]);
   sk.status = 'inactive';
-  saveDB(db); res.json({ message: 'Anggota di-nonaktifkan (history tetap tersimpan)' });
+  res.json({ message: 'Anggota di-nonaktifkan (history tetap tersimpan)' });
 });
-app.delete('/api/santri-kelompok', authenticate, requireAdmin, (req, res) => {
+app.delete('/api/santri-kelompok', authenticate, requireAdmin, async (req, res) => {
   const { santri_id, kelompok_id } = req.query;
   if (!santri_id || !kelompok_id) return res.status(400).json({ message: 'santri_id & kelompok_id wajib' });
+  await pool.execute('DELETE FROM santri_kelompok WHERE santri_id = ? AND kelompok_id = ?', [santri_id, kelompok_id]);
   db.santri_kelompok = db.santri_kelompok.filter(sk => !(sk.santri_id == santri_id && sk.kelompok_id == kelompok_id));
-  saveDB(db); res.json({ message: 'Relasi dihapus permanen' });
+  res.json({ message: 'Relasi dihapus permanen' });
 });
 
 // ── Absensi (Unified) ──────────────────────────────────────────
@@ -949,33 +970,35 @@ app.get('/api/absen-malam', authenticate, (req, res) => {
   }));
 });
 
-app.post('/api/absen-malam/bulk', authenticate, (req, res) => {
+app.post('/api/absen-malam/bulk', authenticate, async (req, res) => {
   if (req.user.role === 'wali') return res.status(403).json({ message: 'Wali tidak bisa mengubah absensi' });
   if (!db.absensi_sesi) db.absensi_sesi = [];
   const { tanggal, items } = req.body;
   if (!tanggal || !items) return res.status(400).json({ message: 'Data tidak lengkap (tanggal, items wajib)' });
-  // Cari kelompok Absen Malam
   const kelompok = db.kelompok.find(k => k.nama === 'Absen Malam' || k.nama === 'Ngaji Malam');
   const kelompokId = kelompok ? kelompok.id : null;
   // ── Sesi: replace jika sudah ada ──
   const oldSesiMalam = db.absensi_sesi.find(s => s.ustadz_username === req.user.username && (s.kegiatan_nama === 'Absen Malam' || (kelompokId && s.kelompok_id === kelompokId)) && s.tanggal === tanggal);
   if (oldSesiMalam) {
-    // Hapus dari unified absensi
     if (kelompokId) {
+      await pool.execute('DELETE FROM absensi WHERE kelompok_id = ? AND tanggal = ? AND recorded_by = ?', [kelompokId, tanggal, req.user.id]);
       db.absensi = db.absensi.filter(a => !(a.kelompok_id === kelompokId && a.tanggal === tanggal && a.recorded_by === req.user.id));
     }
-    // Also clean old table for compat
     if (!db.absen_malam) db.absen_malam = [];
     db.absen_malam = db.absen_malam.filter(a => !(a.tanggal === tanggal && a.recorded_by === req.user.id));
-    oldSesiMalam.created_at = new Date().toISOString();
+    oldSesiMalam.created_at = toDatetime();
   } else {
-    db.absensi_sesi.push({ id: nextId(db.absensi_sesi), ustadz_username: req.user.username, kegiatan_id: 0, kelompok_id: kelompokId, kegiatan_nama: 'Absen Malam', tanggal, created_at: new Date().toISOString() });
+    const sesiData = { ustadz_username: req.user.username, kegiatan_id: 0, kelompok_id: kelompokId, kegiatan_nama: 'Absen Malam', tanggal, created_at: toDatetime() };
+    const newSesi = await dbInsert('absensi_sesi', sesiData, db.absensi_sesi);
   }
   // Insert ke unified absensi
-  items.forEach(item => {
-    db.absensi.push({ id: nextId(db.absensi), santri_id: item.santri_id, kegiatan_id: null, kelompok_id: kelompokId, sesi_id: null, tanggal, status: item.status, keterangan: item.keterangan || '', recorded_by: req.user.id, created_at: new Date().toISOString() });
-  });
-  saveDB(db); res.json({ message: 'Absen malam tersimpan (unified)' });
+  for (const item of items) {
+    await dbInsert('absensi', {
+      santri_id: item.santri_id, kegiatan_id: null, kelompok_id: kelompokId, sesi_id: null,
+      tanggal, status: item.status, keterangan: item.keterangan || '', recorded_by: req.user.id, created_at: toDatetime()
+    }, db.absensi);
+  }
+  res.json({ message: 'Absen malam tersimpan (unified)' });
 });
 
 // ── Absen Sekolah (Tabel Terpisah) ─────────────────────
@@ -996,7 +1019,7 @@ app.get('/api/absen-sekolah', authenticate, (req, res) => {
   }));
 });
 
-app.post('/api/absen-sekolah/bulk', authenticate, (req, res) => {
+app.post('/api/absen-sekolah/bulk', authenticate, async (req, res) => {
   if (req.user.role === 'wali') return res.status(403).json({ message: 'Wali tidak bisa mengubah absensi' });
   if (!db.absensi_sesi) db.absensi_sesi = [];
   const { tanggal, items, kelas, mata_pelajaran } = req.body;
@@ -1014,26 +1037,33 @@ app.post('/api/absen-sekolah/bulk', authenticate, (req, res) => {
       return res.status(403).json({ message: `Di luar jam jadwal (${jadwalMatch.jam_mulai}-${jadwalMatch.jam_selesai}, toleransi 1 jam)` });
   }
 
-  // Cari kelompok Sekolah
   const kelompok = db.kelompok.find(k => k.tipe === 'SEKOLAH');
   const kelompokId = kelompok ? kelompok.id : null;
   // ── Sesi: replace jika sudah ada ──
   const oldSesiSekolah = db.absensi_sesi.find(s => s.ustadz_username === req.user.username && (s.kegiatan_nama === 'Sekolah' || (kelompokId && s.kelompok_id === kelompokId)) && s.tanggal === tanggal && (!mata_pelajaran || s.mata_pelajaran === mata_pelajaran));
   if (oldSesiSekolah) {
     if (kelompokId) {
+      let delSql = 'DELETE FROM absensi WHERE kelompok_id = ? AND tanggal = ? AND recorded_by = ?';
+      const delParams = [kelompokId, tanggal, req.user.id];
+      if (mata_pelajaran) { delSql += ' AND mata_pelajaran = ?'; delParams.push(mata_pelajaran); }
+      await pool.execute(delSql, delParams);
       db.absensi = db.absensi.filter(a => !(a.kelompok_id === kelompokId && a.tanggal === tanggal && a.recorded_by === req.user.id && (!mata_pelajaran || a.mata_pelajaran === mata_pelajaran)));
     }
     if (!db.absen_sekolah) db.absen_sekolah = [];
     db.absen_sekolah = db.absen_sekolah.filter(a => !(a.tanggal === tanggal && a.recorded_by === req.user.id && (!mata_pelajaran || a.mata_pelajaran === mata_pelajaran)));
-    oldSesiSekolah.created_at = new Date().toISOString();
+    oldSesiSekolah.created_at = toDatetime();
   } else {
-    db.absensi_sesi.push({ id: nextId(db.absensi_sesi), ustadz_username: req.user.username, kegiatan_id: 0, kelompok_id: kelompokId, kegiatan_nama: 'Sekolah', kelas_sekolah: kelas || null, mata_pelajaran: mata_pelajaran || null, tanggal, created_at: new Date().toISOString() });
+    const sesiData = { ustadz_username: req.user.username, kegiatan_id: 0, kelompok_id: kelompokId, kegiatan_nama: 'Sekolah', kelas_sekolah: kelas || null, mata_pelajaran: mata_pelajaran || null, tanggal, created_at: toDatetime() };
+    await dbInsert('absensi_sesi', sesiData, db.absensi_sesi);
   }
   // Insert ke unified absensi
-  items.forEach(item => {
-    db.absensi.push({ id: nextId(db.absensi), santri_id: item.santri_id, kegiatan_id: null, kelompok_id: kelompokId, sesi_id: null, tanggal, status: item.status, keterangan: item.keterangan || '', recorded_by: req.user.id, created_at: new Date().toISOString() });
-  });
-  saveDB(db); res.json({ message: 'Absen sekolah tersimpan (unified)' });
+  for (const item of items) {
+    await dbInsert('absensi', {
+      santri_id: item.santri_id, kegiatan_id: null, kelompok_id: kelompokId, sesi_id: null,
+      tanggal, status: item.status, keterangan: item.keterangan || '', recorded_by: req.user.id, created_at: toDatetime()
+    }, db.absensi);
+  }
+  res.json({ message: 'Absen sekolah tersimpan (unified)' });
 });
 
 // ── Rekap ──────────────────────────────────────────────
@@ -1146,14 +1176,14 @@ app.get('/api/pengumuman', authenticate, (req, res) => {
     return { ...p, created_by_nama: u ? u.nama : 'Admin' };
   }).sort((a, b) => b.created_at.localeCompare(a.created_at)));
 });
-app.post('/api/pengumuman', authenticate, requireAdmin, (req, res) => {
+app.post('/api/pengumuman', authenticate, requireAdmin, async (req, res) => {
   const { judul, isi } = req.body;
   if (!judul || !isi) return res.status(400).json({ message: 'Judul & isi wajib' });
-  const p = { id: nextId(db.pengumuman), judul, isi, created_by: req.user.id, created_at: new Date().toISOString() };
-  db.pengumuman.push(p); saveDB(db); res.json(p);
+  const pData = { judul, isi, created_by: req.user.id, created_at: toDatetime() };
+  const p = await dbInsert('pengumuman', pData, db.pengumuman); res.json(p);
 });
-app.delete('/api/pengumuman/:id', authenticate, requireAdmin, (req, res) => {
-  db.pengumuman = db.pengumuman.filter(p => p.id != req.params.id); saveDB(db);
+app.delete('/api/pengumuman/:id', authenticate, requireAdmin, async (req, res) => {
+  await dbDelete('pengumuman', parseInt(req.params.id), db.pengumuman);
   res.json({ message: 'Pengumuman dihapus' });
 });
 
@@ -1168,24 +1198,26 @@ app.get('/api/pelanggaran', authenticate, (req, res) => {
     return { ...p, santri_nama: s ? s.nama : '-' };
   }).sort((a, b) => b.tanggal.localeCompare(a.tanggal)));
 });
-app.post('/api/pelanggaran', authenticate, requireAdmin, (req, res) => {
+app.post('/api/pelanggaran', authenticate, requireAdmin, async (req, res) => {
   const { santri_id, tanggal, jenis, keterangan, sanksi } = req.body;
   if (!santri_id || !tanggal || !jenis) return res.status(400).json({ message: 'Santri, tanggal & jenis wajib' });
   if (!db.pelanggaran) db.pelanggaran = [];
-  const p = { id: nextId(db.pelanggaran), santri_id: parseInt(santri_id), tanggal, jenis, keterangan: keterangan || '', sanksi: sanksi || '', created_at: new Date().toISOString() };
-  db.pelanggaran.push(p); saveDB(db); res.json(p);
+  const pData = { santri_id: parseInt(santri_id), tanggal, jenis, keterangan: keterangan || '', sanksi: sanksi || '', created_at: toDatetime() };
+  const p = await dbInsert('pelanggaran', pData, db.pelanggaran); res.json(p);
 });
-app.put('/api/pelanggaran/:id', authenticate, requireAdmin, (req, res) => {
+app.put('/api/pelanggaran/:id', authenticate, requireAdmin, async (req, res) => {
   if (!db.pelanggaran) return res.status(404).json({ message: 'Tidak ditemukan' });
   const p = db.pelanggaran.find(x => x.id == req.params.id);
   if (!p) return res.status(404).json({ message: 'Tidak ditemukan' });
-  ['tanggal', 'jenis', 'keterangan', 'sanksi'].forEach(f => { if (req.body[f] !== undefined) p[f] = req.body[f]; });
-  if (req.body.santri_id) p.santri_id = parseInt(req.body.santri_id);
-  saveDB(db); res.json({ message: 'Pelanggaran diupdate' });
+  const updates = {};
+  ['tanggal', 'jenis', 'keterangan', 'sanksi'].forEach(f => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
+  if (req.body.santri_id) updates.santri_id = parseInt(req.body.santri_id);
+  if (Object.keys(updates).length) await dbUpdate('pelanggaran', p.id, updates, db.pelanggaran);
+  res.json({ message: 'Pelanggaran diupdate' });
 });
-app.delete('/api/pelanggaran/:id', authenticate, requireAdmin, (req, res) => {
+app.delete('/api/pelanggaran/:id', authenticate, requireAdmin, async (req, res) => {
   if (!db.pelanggaran) return res.status(404).json({ message: 'Tidak ditemukan' });
-  db.pelanggaran = db.pelanggaran.filter(p => p.id != req.params.id); saveDB(db);
+  await dbDelete('pelanggaran', parseInt(req.params.id), db.pelanggaran);
   res.json({ message: 'Pelanggaran dihapus' });
 });
 
@@ -1207,32 +1239,34 @@ app.get('/api/catatan', authenticate, (req, res) => {
     return { ...c, santri_nama: s ? s.nama : '-', guru_nama: u ? u.nama : '-' };
   }).sort((a, b) => b.tanggal.localeCompare(a.tanggal)));
 });
-app.post('/api/catatan', authenticate, (req, res) => {
+app.post('/api/catatan', authenticate, async (req, res) => {
   if (req.user.role === 'wali') return res.status(403).json({ message: 'Wali tidak bisa membuat catatan' });
   const { santri_id, tanggal, judul, isi, kategori } = req.body;
   if (!santri_id || !tanggal || !isi) return res.status(400).json({ message: 'Santri, tanggal & isi wajib' });
   if (!db.catatan_guru) db.catatan_guru = [];
-  const c = {
-    id: nextId(db.catatan_guru), santri_id: parseInt(santri_id), tanggal,
+  const cData = {
+    santri_id: parseInt(santri_id), tanggal,
     judul: judul || '', isi, kategori: kategori || 'lainnya',
-    created_by: req.user.id, created_at: new Date().toISOString()
+    created_by: req.user.id, created_at: toDatetime()
   };
-  db.catatan_guru.push(c); saveDB(db); res.json(c);
+  const c = await dbInsert('catatan_guru', cData, db.catatan_guru); res.json(c);
 });
-app.put('/api/catatan/:id', authenticate, (req, res) => {
+app.put('/api/catatan/:id', authenticate, async (req, res) => {
   if (req.user.role === 'wali') return res.status(403).json({ message: 'Wali tidak bisa mengubah catatan' });
   if (!db.catatan_guru) return res.status(404).json({ message: 'Tidak ditemukan' });
   const c = db.catatan_guru.find(x => x.id == req.params.id);
   if (!c) return res.status(404).json({ message: 'Tidak ditemukan' });
-  ['santri_id', 'tanggal', 'judul', 'isi', 'kategori'].forEach(f => { if (req.body[f] !== undefined) c[f] = req.body[f]; });
-  if (req.body.santri_id) c.santri_id = parseInt(req.body.santri_id);
-  saveDB(db); res.json({ message: 'Catatan diupdate' });
+  const updates = {};
+  ['santri_id', 'tanggal', 'judul', 'isi', 'kategori'].forEach(f => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
+  if (req.body.santri_id) updates.santri_id = parseInt(req.body.santri_id);
+  if (Object.keys(updates).length) await dbUpdate('catatan_guru', c.id, updates, db.catatan_guru);
+  res.json({ message: 'Catatan diupdate' });
 });
-app.delete('/api/catatan/:id', authenticate, (req, res) => {
+app.delete('/api/catatan/:id', authenticate, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ message: 'Hanya admin' });
   if (!db.catatan_guru) return res.status(404).json({ message: 'Tidak ditemukan' });
-  db.catatan_guru = db.catatan_guru.filter(c => c.id != req.params.id);
-  saveDB(db); res.json({ message: 'Catatan dihapus' });
+  await dbDelete('catatan_guru', parseInt(req.params.id), db.catatan_guru);
+  res.json({ message: 'Catatan dihapus' });
 });
 
 // ── Download All Raport (Excel) ──────────────────────────
@@ -1541,12 +1575,11 @@ app.get('/api/raport/:santri_id/pdf', authenticate, (req, res) => {
   if (req.query.sampai) catatanList = catatanList.filter(c => c.tanggal <= req.query.sampai);
   // Wali & Settings
   const wali = santri.wali_user_id ? db.users.find(u => u.id === santri.wali_user_id) : null;
-  const dataSettings = loadDB();
-  const appName = (dataSettings.settings && dataSettings.settings.app_name) || 'Pesantren';
-  const kepalaNama = (dataSettings.settings && dataSettings.settings.kepala_nama) || '';
-  const alamatLembaga = (dataSettings.settings && dataSettings.settings.alamat_lembaga) || '';
-  const namaKota = (dataSettings.settings && dataSettings.settings.nama_kota) || '';
-  const logoData = (dataSettings.settings && dataSettings.settings.logo) || '';
+  const appName = (db.settings && db.settings.app_name) || 'Pesantren';
+  const kepalaNama = (db.settings && db.settings.kepala_nama) || '';
+  const alamatLembaga = (db.settings && db.settings.alamat_lembaga) || '';
+  const namaKota = (db.settings && db.settings.nama_kota) || '';
+  const logoData = (db.settings && db.settings.logo) || '';
   // Periode label
   const bulanNama = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
   const sampaiDate = req.query.sampai ? new Date(req.query.sampai) : new Date();
@@ -1727,75 +1760,68 @@ app.get('/api/raport/:santri_id/pdf', authenticate, (req, res) => {
 
 // ── Settings ──────────────────────────────────────────
 app.get('/api/settings', (req, res) => {
-  const data = loadDB();
-  res.json(data.settings || { app_name: 'Pesantren Absensi', logo: '' });
+  res.json(db.settings || { app_name: 'Pesantren Absensi', logo: '' });
 });
-app.put('/api/settings', authenticate, requireAdmin, (req, res) => {
-  const data = loadDB();
-  data.settings = { ...data.settings, ...req.body };
-  saveDB(data);
-  res.json({ message: 'Pengaturan disimpan', settings: data.settings });
+app.put('/api/settings', authenticate, requireAdmin, async (req, res) => {
+  const updates = { ...db.settings, ...req.body };
+  delete updates.id;
+  const fields = Object.keys(updates);
+  const vals = Object.values(updates);
+  const set = fields.map(f => `${f} = ?`).join(', ');
+  await pool.execute(`UPDATE settings SET ${set} WHERE id = 1`, vals);
+  db.settings = { ...db.settings, ...req.body };
+  res.json({ message: 'Pengaturan disimpan', settings: db.settings });
 });
-app.post('/api/settings/logo', authenticate, requireAdmin, (req, res) => {
+app.post('/api/settings/logo', authenticate, requireAdmin, async (req, res) => {
   const { logo } = req.body;
   if (!logo) return res.status(400).json({ message: 'Logo wajib' });
-  const data = loadDB();
-  if (!data.settings) data.settings = { app_name: 'Pesantren Absensi' };
-  data.settings.logo = logo;
-  saveDB(data);
+  await pool.execute('UPDATE settings SET logo = ? WHERE id = 1', [logo]);
+  db.settings.logo = logo;
   res.json({ message: 'Logo diupdate' });
 });
-app.post('/api/settings/background', authenticate, requireAdmin, (req, res) => {
+app.post('/api/settings/background', authenticate, requireAdmin, async (req, res) => {
   const { background } = req.body;
   if (!background) return res.status(400).json({ message: 'Background wajib' });
-  const data = loadDB();
-  if (!data.settings) data.settings = { app_name: 'Pesantren Absensi' };
-  data.settings.background = background;
-  saveDB(data);
+  await pool.execute('UPDATE settings SET background = ? WHERE id = 1', [background]);
+  db.settings.background = background;
   res.json({ message: 'Background diupdate' });
 });
-app.post('/api/settings/dashboard-bg', authenticate, requireAdmin, (req, res) => {
+app.post('/api/settings/dashboard-bg', authenticate, requireAdmin, async (req, res) => {
   const { dashboard_bg } = req.body;
   if (!dashboard_bg) return res.status(400).json({ message: 'Background dashboard wajib' });
-  const data = loadDB();
-  if (!data.settings) data.settings = { app_name: 'Pesantren Absensi' };
-  data.settings.dashboard_bg = dashboard_bg;
-  saveDB(data);
+  await pool.execute('UPDATE settings SET dashboard_bg = ? WHERE id = 1', [dashboard_bg]);
+  db.settings.dashboard_bg = dashboard_bg;
   res.json({ message: 'Background dashboard diupdate' });
 });
-app.post('/api/settings/delete', authenticate, requireAdmin, (req, res) => {
+app.post('/api/settings/delete', authenticate, requireAdmin, async (req, res) => {
   const { field } = req.body;
   const allowed = ['logo', 'background', 'dashboard_bg'];
   if (!allowed.includes(field)) return res.status(400).json({ message: 'Field tidak valid' });
-  const data = loadDB();
-  if (data.settings) delete data.settings[field];
-  saveDB(data);
+  await pool.execute(`UPDATE settings SET ${field} = NULL WHERE id = 1`);
+  delete db.settings[field];
   res.json({ message: field + ' dihapus' });
 });
 
 // File upload endpoints (multer)
-app.post('/api/settings/logo-file', authenticate, requireAdmin, upload.single('file'), (req, res) => {
+app.post('/api/settings/logo-file', authenticate, requireAdmin, upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'File tidak ada' });
-  const data = loadDB();
-  if (!data.settings) data.settings = { app_name: 'Pesantren Absensi' };
-  data.settings.logo = 'data:' + req.file.mimetype + ';base64,' + req.file.buffer.toString('base64');
-  saveDB(data);
+  const logoData = 'data:' + req.file.mimetype + ';base64,' + req.file.buffer.toString('base64');
+  await pool.execute('UPDATE settings SET logo = ? WHERE id = 1', [logoData]);
+  db.settings.logo = logoData;
   res.json({ message: 'Logo diupload' });
 });
-app.post('/api/settings/bg-file', authenticate, requireAdmin, upload.single('file'), (req, res) => {
+app.post('/api/settings/bg-file', authenticate, requireAdmin, upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'File tidak ada' });
-  const data = loadDB();
-  if (!data.settings) data.settings = { app_name: 'Pesantren Absensi' };
-  data.settings.background = 'data:' + req.file.mimetype + ';base64,' + req.file.buffer.toString('base64');
-  saveDB(data);
+  const bgData = 'data:' + req.file.mimetype + ';base64,' + req.file.buffer.toString('base64');
+  await pool.execute('UPDATE settings SET background = ? WHERE id = 1', [bgData]);
+  db.settings.background = bgData;
   res.json({ message: 'Background login diupload' });
 });
-app.post('/api/settings/dash-bg-file', authenticate, requireAdmin, upload.single('file'), (req, res) => {
+app.post('/api/settings/dash-bg-file', authenticate, requireAdmin, upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'File tidak ada' });
-  const data = loadDB();
-  if (!data.settings) data.settings = { app_name: 'Pesantren Absensi' };
-  data.settings.dashboard_bg = 'data:' + req.file.mimetype + ';base64,' + req.file.buffer.toString('base64');
-  saveDB(data);
+  const dashBgData = 'data:' + req.file.mimetype + ';base64,' + req.file.buffer.toString('base64');
+  await pool.execute('UPDATE settings SET dashboard_bg = ? WHERE id = 1', [dashBgData]);
+  db.settings.dashboard_bg = dashBgData;
   res.json({ message: 'Background menu diupload' });
 });
 
@@ -1839,8 +1865,7 @@ app.get('/api/export/pdf', authenticate, (req, res) => {
   doc.pipe(res);
 
   // Header
-  const data_settings = loadDB();
-  const appName = (data_settings.settings && data_settings.settings.app_name) || 'Pesantren';
+  const appName = (db.settings && db.settings.app_name) || 'Pesantren';
   doc.fontSize(18).font('Helvetica-Bold').text('REKAP ABSENSI SANTRI', { align: 'center' });
   doc.fontSize(10).font('Helvetica').text(appName, { align: 'center' });
   doc.moveDown(0.5);
@@ -1885,10 +1910,9 @@ app.get('/api/export/pdf', authenticate, (req, res) => {
 
 // ── Export Rekap Absensi Excel ──────────────────────────
 app.get('/api/export/excel', authenticate, async (req, res) => {
-  const dataSettings = loadDB();
-  const appName = (dataSettings.settings && dataSettings.settings.app_name) || 'Pesantren';
-  const alamatLembaga = (dataSettings.settings && dataSettings.settings.alamat_lembaga) || '';
-  const logoData = (dataSettings.settings && dataSettings.settings.logo) || '';
+  const appName = (db.settings && db.settings.app_name) || 'Pesantren';
+  const alamatLembaga = (db.settings && db.settings.alamat_lembaga) || '';
+  const logoData = (db.settings && db.settings.logo) || '';
   const bulanNama = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
   // ── Ambil data rekap ──
@@ -2073,12 +2097,17 @@ app.get('/api/export/excel', authenticate, async (req, res) => {
 });
 
 // ── Cleanup Orphan Absensi ─────────────────────────────
-app.post('/api/maintenance/cleanup-absensi', authenticate, requireAdmin, (req, res) => {
+app.post('/api/maintenance/cleanup-absensi', authenticate, requireAdmin, async (req, res) => {
   const validKegiatanIds = new Set(db.kegiatan.map(k => k.id));
   const before = db.absensi.length;
+  // Delete orphan absensi from MariaDB
+  const orphanIds = db.absensi.filter(a => !validKegiatanIds.has(a.kegiatan_id)).map(a => a.id);
+  if (orphanIds.length) {
+    const ph = orphanIds.map(() => '?').join(',');
+    await pool.execute(`DELETE FROM absensi WHERE id IN (${ph})`, orphanIds);
+  }
   db.absensi = db.absensi.filter(a => validKegiatanIds.has(a.kegiatan_id));
   const removed = before - db.absensi.length;
-  saveDB(db);
   res.json({ message: `Bersihkan ${removed} data absensi orphan`, removed, remaining: db.absensi.length });
 });
 
@@ -2130,12 +2159,11 @@ app.get('/api/rekap-ustadz', authenticate, (req, res) => {
 
 // ── Rekap Ustadz PDF (Pivot Table) ──────────────────────
 app.get('/api/rekap-ustadz/pdf', authenticate, (req, res) => {
-  const dataSettings = loadDB();
-  const appName = (dataSettings.settings && dataSettings.settings.app_name) || 'Pesantren';
-  const kepalaNama = (dataSettings.settings && dataSettings.settings.kepala_nama) || '';
-  const alamatLembaga = (dataSettings.settings && dataSettings.settings.alamat_lembaga) || '';
-  const namaKota = (dataSettings.settings && dataSettings.settings.nama_kota) || '';
-  const logoData = (dataSettings.settings && dataSettings.settings.logo) || '';
+  const appName = (db.settings && db.settings.app_name) || 'Pesantren';
+  const kepalaNama = (db.settings && db.settings.kepala_nama) || '';
+  const alamatLembaga = (db.settings && db.settings.alamat_lembaga) || '';
+  const namaKota = (db.settings && db.settings.nama_kota) || '';
+  const logoData = (db.settings && db.settings.logo) || '';
 
   // ── Filter sesi berdasarkan periode ──
   if (!db.absensi_sesi) db.absensi_sesi = [];
@@ -2343,10 +2371,9 @@ app.get('/api/rekap-ustadz/pdf', authenticate, (req, res) => {
 
 // ── Rekap Ustadz Excel ─────────────────────────────────
 app.get('/api/rekap-ustadz/excel', authenticate, async (req, res) => {
-  const dataSettings = loadDB();
-  const appName = (dataSettings.settings && dataSettings.settings.app_name) || 'Pesantren';
-  const alamatLembaga = (dataSettings.settings && dataSettings.settings.alamat_lembaga) || '';
-  const logoData = (dataSettings.settings && dataSettings.settings.logo) || '';
+  const appName = (db.settings && db.settings.app_name) || 'Pesantren';
+  const alamatLembaga = (db.settings && db.settings.alamat_lembaga) || '';
+  const logoData = (db.settings && db.settings.logo) || '';
   const bulanNama = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
   if (!db.absensi_sesi) db.absensi_sesi = [];
