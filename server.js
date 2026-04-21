@@ -5,14 +5,13 @@ const path = require('path');
 const fs = require('fs');
 const PDFDocument = require('pdfkit');
 const multer = require('multer');
-const archiver = require('archiver');
 const ExcelJS = require('exceljs');
 const compression = require('compression');
+const mysql = require('mysql2/promise');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'pesantren-secret-key';
-const DB_FILE = process.env.DATA_FILE || path.join(__dirname, 'data.json');
 
 app.use(compression());
 app.use(express.json({ limit: '5mb' }));
@@ -29,92 +28,119 @@ app.use(express.static(path.join(__dirname, 'public'), {
 // Multer - memory storage, max 5MB
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
-// ── JSON Database ──────────────────────────────────────
-function loadDB() {
-  if (fs.existsSync(DB_FILE)) {
-    const data = JSON.parse(fs.readFileSync(DB_FILE, 'utf-8'));
-    // Ensure new tables exist
-    if (!data.kelompok) data.kelompok = [];
-    if (!data.santri_kelompok) data.santri_kelompok = [];
-    if (!data.absensi_sesi) data.absensi_sesi = [];
-    if (!data.kelas_sekolah) {
-      // Auto-seed from existing santri data
-      const kelasSet = new Set(data.santri.map(s => s.kelas_sekolah).filter(Boolean));
-      data.kelas_sekolah = [...kelasSet].sort().map((nama, i) => ({ id: i + 1, nama, created_at: new Date().toISOString() }));
-    }
-    if (!data.jadwal_umum) data.jadwal_umum = [];
-    if (!data.jadwal_sekolah) data.jadwal_sekolah = [];
-    return data;
-  }
-  return { users: [], kamar: [], kelas_sekolah: [], santri: [], absensi: [], absen_malam: [], absen_sekolah: [], absensi_sesi: [], pengumuman: [], kegiatan: [], kelompok: [], santri_kelompok: [], jadwal_umum: [], jadwal_sekolah: [] };
-}
-function saveDB(data) { 
-  _pendingSave = true;
-  _pendingData = data;
-}
-let _pendingSave = false;
-let _pendingData = null;
-let _saveTimer = null;
-function _flushSave() {
-  if (!_pendingSave || !_pendingData) return;
-  _pendingSave = false;
-  fs.writeFileSync(DB_FILE, JSON.stringify(_pendingData, null, 2));
-}
-// Save at most every 500ms, flush on exit
-setInterval(() => { if (_pendingSave) _flushSave(); }, 500);
-process.on('exit', _flushSave);
-process.on('SIGINT', () => { _flushSave(); process.exit(); });
-process.on('SIGTERM', () => { _flushSave(); process.exit(); });
+// ── MariaDB Connection Pool ────────────────────────────
+const pool = mysql.createPool({
+  host: 'localhost', user: 'pesantren', password: 'pesantren2026',
+  database: 'pesantren', waitForConnections: true, connectionLimit: 20, dateStrings: true
+});
+
+// ── In-Memory DB (loaded from MariaDB) ─────────────────
+let db = {};
 function nextId(arr) { return arr.length ? Math.max(...arr.map(x => x.id)) + 1 : 1; }
 
-// Init default admin
-let db = loadDB();
-if (!db.users.find(u => u.username === 'admin')) {
-  db.users.push({ id: 1, username: 'admin', password_hash: bcrypt.hashSync('admin123', 10), role: 'admin', nama: 'Administrator', created_at: new Date().toISOString() });
-  saveDB(db);
-  console.log('Default admin: admin / admin123');
+async function loadFromDB() {
+  const tables = {
+    users: 'SELECT * FROM users',
+    kamar: 'SELECT * FROM kamar',
+    kelas_sekolah: 'SELECT * FROM kelas_sekolah',
+    santri: 'SELECT * FROM santri',
+    kegiatan: 'SELECT * FROM kegiatan',
+    kelompok: 'SELECT * FROM kelompok',
+    santri_kelompok: 'SELECT * FROM santri_kelompok',
+    absensi_sesi: 'SELECT * FROM absensi_sesi',
+    absensi: 'SELECT * FROM absensi',
+    absen_malam: 'SELECT * FROM absen_malam',
+    absen_sekolah: 'SELECT * FROM absen_sekolah',
+    pelanggaran: 'SELECT * FROM pelanggaran',
+    catatan_guru: 'SELECT * FROM catatan_guru',
+    jadwal_umum: 'SELECT * FROM jadwal_umum',
+    jadwal_sekolah: 'SELECT * FROM jadwal_sekolah',
+    pengumuman: 'SELECT * FROM pengumuman'
+  };
+  for (const [table, sql] of Object.entries(tables)) {
+    try { db[table] = await pool.execute(sql).then(([r]) => r); }
+    catch(e) { db[table] = []; console.error(`Load ${table} error:`, e.message); }
+  }
+  // Settings
+  const [sRows] = await pool.execute('SELECT * FROM settings LIMIT 1');
+  db.settings = sRows[0] || { app_name: 'Pesantren', alamat_lembaga: '', kepala_nama: '', nama_kota: '', logo: null };
 }
-// Init default kegiatan
-if (!db.kegiatan) db.kegiatan = [];
-if (db.kegiatan.length === 0) {
-  db.kegiatan = [
-    { id: 1, nama: 'Ngaji Pagi', created_at: new Date().toISOString() },
-    { id: 2, nama: "Ngaji Qur'an Siang", created_at: new Date().toISOString() },
-    { id: 3, nama: 'Bakat', created_at: new Date().toISOString() },
-    { id: 4, nama: 'Madrasah Diniyyah', created_at: new Date().toISOString() },
-    { id: 5, nama: 'Ngaji Malam', created_at: new Date().toISOString() },
-  ];
-}
-saveDB(db);
 
-// Backfill: auto-create kelompok untuk kegiatan yang belum punya
-db.kegiatan.forEach(k => {
-  if (k.kategori === 'pokok') {
-    // Pokok: kelompok tipe = nama kegiatan
-    // Migrasi: cek kelompok lama tipe KEGIATAN → ubah ke tipe nama kegiatan
-    const oldKegiatan = db.kelompok.find(kl => kl.tipe === 'KEGIATAN' && kl.kegiatan_nama === k.nama);
-    if (oldKegiatan) { oldKegiatan.tipe = k.nama; }
-    const existing = db.kelompok.find(kl => kl.tipe === k.nama);
-    if (!existing) {
-      db.kelompok.push({ id: nextId(db.kelompok), nama: k.nama, tipe: k.nama, kegiatan_nama: k.nama, created_at: new Date().toISOString() });
-    }
-  } else {
-    // Tambahan: kelompok tipe KEGIATAN
-    const existing = db.kelompok.find(kl => kl.nama === k.nama && kl.tipe === 'KEGIATAN');
-    if (!existing) {
-      db.kelompok.push({ id: nextId(db.kelompok), nama: k.nama, tipe: 'KEGIATAN', kegiatan_nama: k.nama, created_at: new Date().toISOString() });
-    } else if (!existing.kegiatan_nama) {
-      existing.kegiatan_nama = k.nama;
+// ── Save helpers (write to MariaDB + sync in-memory) ──
+async function saveDB() { /* no-op: each endpoint writes directly */ }
+
+function toDatetime(iso) {
+  if (!iso) return new Date().toISOString().slice(0, 19).replace('T', ' ');
+  return iso.slice(0, 19).replace('T', ' ');
+}
+
+// Generic: insert into table + add to in-memory array
+async function dbInsert(table, data, arr) {
+  const keys = Object.keys(data);
+  const vals = Object.values(data);
+  const ph = keys.map(() => '?').join(', ');
+  const [result] = await pool.execute(`INSERT INTO ${table} (${keys.join(', ')}) VALUES (${ph})`, vals);
+  const row = { id: result.insertId, ...data };
+  arr.push(row);
+  return row;
+}
+
+// Generic: update table + update in-memory
+async function dbUpdate(table, id, data, arr) {
+  const keys = Object.keys(data);
+  const vals = Object.values(data);
+  const set = keys.map(k => `${k} = ?`).join(', ');
+  await pool.execute(`UPDATE ${table} SET ${set} WHERE id = ?`, [...vals, id]);
+  const idx = arr.findIndex(x => x.id == id);
+  if (idx >= 0) Object.assign(arr[idx], data);
+}
+
+// Generic: delete from table + remove from in-memory
+async function dbDelete(table, id, arr) {
+  await pool.execute(`DELETE FROM ${table} WHERE id = ?`, [id]);
+  const idx = arr.findIndex(x => x.id == id);
+  if (idx >= 0) arr.splice(idx, 1);
+}
+
+// Reload specific table from DB
+async function dbReload(table) {
+  const [rows] = await pool.execute(`SELECT * FROM ${table}`);
+  db[table] = rows;
+}
+
+// ── Server startup ─────────────────────────────────────
+async function startServer() {
+  await loadFromDB();
+  console.log('Database loaded from MariaDB');
+  // Ensure admin exists
+  if (!db.users.find(u => u.username === 'admin')) {
+    const hash = bcrypt.hashSync('admin123', 10);
+    await pool.execute('INSERT INTO users (username, password_hash, role, nama) VALUES (?, ?, ?, ?)', ['admin', hash, 'admin', 'Administrator']);
+    await loadFromDB();
+    console.log('Default admin: admin / admin123');
+  }
+  // Backfill: auto-create kelompok untuk kegiatan yang belum punya
+  for (const k of db.kegiatan) {
+    if (k.kategori === 'pokok') {
+      const existing = db.kelompok.find(kl => kl.tipe === k.nama);
+      if (!existing) {
+        await dbInsert('kelompok', { nama: k.nama, tipe: k.nama, kegiatan_nama: k.nama }, db.kelompok);
+      }
+    } else {
+      const existing = db.kelompok.find(kl => kl.nama === k.nama && kl.tipe === 'KEGIATAN');
+      if (!existing) {
+        await dbInsert('kelompok', { nama: k.nama, tipe: 'KEGIATAN', kegiatan_nama: k.nama }, db.kelompok);
+      }
     }
   }
-});
-saveDB(db);
 
-// Ensure kelompok Sekolah exists for absen_sekolah
-if (!db.kelompok.find(k => k.tipe === 'SEKOLAH')) {
-  db.kelompok.push({ id: nextId(db.kelompok), nama: 'Sekolah', tipe: 'SEKOLAH', kegiatan_nama: 'Sekolah', created_at: new Date().toISOString() });
-  saveDB(db);
-  console.log('Auto-created kelompok Sekolah');
+  // Ensure kelompok Sekolah exists
+  if (!db.kelompok.find(k => k.tipe === 'SEKOLAH')) {
+    await dbInsert('kelompok', { nama: 'Sekolah', tipe: 'SEKOLAH', kegiatan_nama: 'Sekolah' }, db.kelompok);
+    console.log('Auto-created kelompok Sekolah');
+  }
+
+  app.listen(PORT, () => console.log(`Server jalan di http://localhost:${PORT}`));
 }
 
 // ── Jadwal Helper ──────────────────────────────────────
@@ -373,7 +399,7 @@ app.get('/api/santri', authenticate, (req, res) => {
   }
   res.json(mapped);
 });
-app.post('/api/santri', authenticate, requireAdmin, (req, res) => {
+app.post('/api/santri', authenticate, requireAdmin, async (req, res) => {
   const { nama, kamar_id, status, kelas_diniyyah, kelompok_ngaji, jenis_bakat, kelas_sekolah, kelompok_ngaji_malam, wali_user_id, extra, alamat } = req.body;
   if (!nama || !kamar_id) return res.status(400).json({ message: 'Nama & kamar wajib' });
   const s = {
@@ -387,20 +413,22 @@ app.post('/api/santri', authenticate, requireAdmin, (req, res) => {
     extra: req.body.extra || {},
     created_at: new Date().toISOString()
   };
-  db.santri.push(s); saveDB(db); res.json(s);
+  const row = await dbInsert('santri', s, db.santri); res.json(row);
 });
-app.put('/api/santri/:id', authenticate, requireAdmin, (req, res) => {
+app.put('/api/santri/:id', authenticate, requireAdmin, async (req, res) => {
   const s = db.santri.find(x => x.id == req.params.id);
   if (!s) return res.status(404).json({ message: 'Santri tidak ditemukan' });
   const fields = ['nama', 'status', 'kelas_diniyyah', 'kelompok_ngaji', 'jenis_bakat', 'kelas_sekolah', 'kelompok_ngaji_malam', 'alamat'];
-  fields.forEach(f => { if (req.body[f] !== undefined) s[f] = req.body[f]; });
-  if (req.body.kamar_id) s.kamar_id = parseInt(req.body.kamar_id);
-  if (req.body.wali_user_id !== undefined) s.wali_user_id = req.body.wali_user_id ? parseInt(req.body.wali_user_id) : null;
-  if (req.body.extra !== undefined) s.extra = req.body.extra;
-  saveDB(db); res.json({ message: 'Santri diupdate' });
+  const updates = {};
+  fields.forEach(f => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
+  if (req.body.kamar_id) updates.kamar_id = parseInt(req.body.kamar_id);
+  if (req.body.wali_user_id !== undefined) updates.wali_user_id = req.body.wali_user_id ? parseInt(req.body.wali_user_id) : null;
+  if (req.body.extra !== undefined) updates.extra = JSON.stringify(req.body.extra);
+  if (Object.keys(updates).length) await dbUpdate('santri', s.id, updates, db.santri);
+  res.json({ message: 'Santri diupdate' });
 });
-app.delete('/api/santri/:id', authenticate, requireAdmin, (req, res) => {
-  db.santri = db.santri.filter(s => s.id != req.params.id); saveDB(db);
+app.delete('/api/santri/:id', authenticate, requireAdmin, async (req, res) => {
+  await dbDelete('santri', parseInt(req.params.id), db.santri);
   res.json({ message: 'Santri dihapus' });
 });
 
@@ -860,7 +888,8 @@ app.get('/api/absensi/kelompok/:kelompok_id', authenticate, (req, res) => {
   }).filter(Boolean);
   res.json({ kelompok, tanggal, sesi_id: sesiId, santri: santriList });
 });
-app.post('/api/absensi/bulk', authenticate, (req, res) => {
+app.post('/api/absensi/bulk', authenticate, async (req, res) => {
+  try {
   if (req.user.role === 'wali') return res.status(403).json({ message: 'Wali tidak bisa mengubah absensi' });
   const { tanggal, kelompok_id, items } = req.body;
   if (!tanggal || !items || !items.length) return res.status(400).json({ message: 'Data tidak lengkap (tanggal, items wajib)' });
@@ -886,25 +915,20 @@ app.post('/api/absensi/bulk', authenticate, (req, res) => {
       return res.status(403).json({ message: `Di luar jam jadwal (${jadwalMatch.jam_mulai}-${jadwalMatch.jam_selesai}, toleransi 1 jam)` });
   }
 
-  // ── Buat sesi baru ──
-  if (!db.absensi_sesi) db.absensi_sesi = [];
-  const newSesi = { id: nextId(db.absensi_sesi), ustadz_username: req.user.username, kelompok_id: finalKelompokId, tanggal, created_at: new Date().toISOString() };
-  db.absensi_sesi.push(newSesi);
+  // ── Buat sesi baru di MariaDB ──
+  const newSesi = await dbInsert('absensi_sesi', { ustadz_username: req.user.username, kelompok_id: finalKelompokId, tanggal }, db.absensi_sesi);
 
-  // ── Insert absensi ──
-  items.forEach(item => {
-    db.absensi.push({
-      id: nextId(db.absensi), santri_id: item.santri_id,
-      kelompok_id: finalKelompokId,
-      sesi_id: newSesi.id,
+  // ── Insert absensi ke MariaDB ──
+  for (const item of items) {
+    await dbInsert('absensi', {
+      santri_id: item.santri_id, kelompok_id: finalKelompokId, sesi_id: newSesi.id,
       tanggal, status: item.status, keterangan: item.keterangan || '',
-      recorded_by: req.user.id, created_at: new Date().toISOString()
-    });
-  });
+      recorded_by: req.user.id
+    }, db.absensi);
+  }
 
-  // ── Simpan langsung (bukan debounce) ──
-  try { fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2)); } catch(e) { console.error('Save error:', e); }
   res.json({ message: 'Absensi tersimpan' });
+  } catch(e) { console.error('absensi/bulk error:', e); res.status(500).json({ message: 'Server error' }); }
 });
 
 // ── Absen Malam (Tabel Terpisah) ───────────────────────
@@ -2464,4 +2488,4 @@ app.get('/api/rekap-ustadz/excel', authenticate, async (req, res) => {
   res.end();
 });
 
-app.listen(PORT, () => console.log(`Server jalan di http://localhost:${PORT}`));
+startServer();
