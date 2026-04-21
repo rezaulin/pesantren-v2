@@ -1702,7 +1702,11 @@ app.get('/api/export/pdf', authenticate, (req, res) => {
   let list = db.absensi;
   if (req.query.dari) list = list.filter(a => a.tanggal >= req.query.dari);
   if (req.query.sampai) list = list.filter(a => a.tanggal <= req.query.sampai);
-  if (req.query.kegiatan_id) list = list.filter(a => a.kegiatan_id == req.query.kegiatan_id);
+  if (req.query.kelompok_id) list = list.filter(a => a.kelompok_id == req.query.kelompok_id);
+  if (req.query.kelompok_tipe) {
+    const kelIds = db.kelompok.filter(k => k.tipe === req.query.kelompok_tipe || k.kegiatan_nama === req.query.kelompok_tipe).map(k => k.id);
+    list = list.filter(a => kelIds.includes(a.kelompok_id));
+  }
   const santriFilters = ['kamar_id', 'kelas_diniyyah', 'kelompok_ngaji', 'kelompok_ngaji_malam', 'jenis_bakat', 'kelas_sekolah'];
   santriFilters.forEach(f => {
     if (req.query[f]) {
@@ -1711,11 +1715,18 @@ app.get('/api/export/pdf', authenticate, (req, res) => {
     }
   });
 
+  function getKegiatanLabel(kl) {
+    if (!kl) return '-';
+    if (kl.tipe === 'SEKOLAH') return 'Absen Sekolah';
+    if (kl.kegiatan_nama) return kl.kegiatan_nama + ' (' + kl.nama + ')';
+    return kl.tipe.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) + ' (' + kl.nama + ')';
+  }
+
   const data = list.map(a => {
     const s = db.santri.find(x => x.id === a.santri_id);
     const k = s ? db.kamar.find(x => x.id === s.kamar_id) : null;
-    const kg = db.kegiatan.find(x => x.id === a.kegiatan_id);
-    return { tanggal: a.tanggal, nama: s ? s.nama : '-', kamar: k ? k.nama : '-', kegiatan: kg ? kg.nama : '-', status: a.status, keterangan: a.keterangan };
+    const kl = db.kelompok.find(x => x.id === a.kelompok_id);
+    return { tanggal: a.tanggal, nama: s ? s.nama : '-', kamar: k ? k.nama : '-', kegiatan: getKegiatanLabel(kl), status: a.status, keterangan: a.keterangan };
   }).sort((a, b) => b.tanggal.localeCompare(a.tanggal));
 
   const statusMap = { H: 'Hadir', I: 'Izin', S: 'Sakit', A: 'Alfa' };
@@ -1734,10 +1745,7 @@ app.get('/api/export/pdf', authenticate, (req, res) => {
   const filterText = [];
   if (req.query.dari) filterText.push(`Dari: ${req.query.dari}`);
   if (req.query.sampai) filterText.push(`Sampai: ${req.query.sampai}`);
-  if (req.query.kegiatan_id) {
-    const kg = db.kegiatan.find(x => x.id == req.query.kegiatan_id);
-    if (kg) filterText.push(`Kegiatan: ${kg.nama}`);
-  }
+  if (req.query.kelompok_tipe) filterText.push(`Kegiatan: ${req.query.kelompok_tipe}`);
   if (filterText.length) doc.fontSize(9).text(filterText.join(' | '), { align: 'center' });
   doc.moveDown(1);
 
@@ -1781,11 +1789,15 @@ app.get('/api/export/excel', authenticate, async (req, res) => {
   const logoData = (dataSettings.settings && dataSettings.settings.logo) || '';
   const bulanNama = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
-  // ── Ambil data rekap (sama seperti /api/export/pdf) ──
+  // ── Ambil data rekap ──
   let list = db.absensi;
   if (req.query.dari) list = list.filter(a => a.tanggal >= req.query.dari);
   if (req.query.sampai) list = list.filter(a => a.tanggal <= req.query.sampai);
-  if (req.query.kegiatan_id) list = list.filter(a => a.kegiatan_id == req.query.kegiatan_id);
+  if (req.query.kelompok_id) list = list.filter(a => a.kelompok_id == req.query.kelompok_id);
+  if (req.query.kelompok_tipe) {
+    const kelIds = db.kelompok.filter(k => k.tipe === req.query.kelompok_tipe || k.kegiatan_nama === req.query.kelompok_tipe).map(k => k.id);
+    list = list.filter(a => kelIds.includes(a.kelompok_id));
+  }
   const santriFilters = ['kamar_id', 'kelas_diniyyah', 'kelompok_ngaji', 'kelompok_ngaji_malam', 'jenis_bakat', 'kelas_sekolah'];
   santriFilters.forEach(f => {
     if (req.query[f]) {
@@ -1794,14 +1806,21 @@ app.get('/api/export/excel', authenticate, async (req, res) => {
     }
   });
 
+  function getKegiatanLabel(kl) {
+    if (!kl) return '-';
+    if (kl.tipe === 'SEKOLAH') return 'Absen Sekolah';
+    if (kl.kegiatan_nama) return kl.kegiatan_nama + ' (' + kl.nama + ')';
+    return kl.tipe.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) + ' (' + kl.nama + ')';
+  }
+
   // ── Pivot: per santri, per kegiatan, hitung H/I/S/A ──
   const pivot = {};
   const kegiatanSet = new Set();
   list.forEach(a => {
     const s = db.santri.find(x => x.id === a.santri_id);
     if (!s) return;
-    const kg = db.kegiatan.find(x => x.id === a.kegiatan_id);
-    const namaKeg = kg ? kg.nama : 'Lainnya';
+    const kl = db.kelompok.find(x => x.id === a.kelompok_id);
+    const namaKeg = getKegiatanLabel(kl);
     kegiatanSet.add(namaKeg);
     if (!pivot[s.id]) pivot[s.id] = { nama: s.nama, kamar: '', data: {} };
     const k = db.kamar.find(x => x.id === s.kamar_id);

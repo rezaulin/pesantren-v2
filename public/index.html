@@ -3667,9 +3667,11 @@ async function showModal(type,editData){
   } else if(type==='catatan'){
     let ct=null;
     if(editData)ct=editData;
-    html='<h3>'+(ct?'Edit':'Tambah')+' Catatan Guru</h3><div class="form-group"><label>Tanggal</label><input type="date" id="mCatTanggal" value="'+(ct?.tanggal||getTodayWIB())+'"></div><div class="form-group"><label>Santri</label><select id="mCatSantri"></select></div><div class="form-group"><label>Kategori</label><select id="mCatKategori"><option value="perilaku" '+(ct?.kategori==='perilaku'?'selected':'')+'>Perilaku</option><option value="akademik" '+(ct?.kategori==='akademik'?'selected':'')+'>Akademik</option><option value="kesehatan" '+(ct?.kategori==='kesehatan'?'selected':'')+'>Kesehatan</option><option value="lainnya" '+(ct?.kategori==='lainnya'||!ct?'selected':'')+'>Lainnya</option></select></div><div class="form-group"><label>Judul (opsional)</label><input id="mCatJudul" value="'+(ct?.judul||'')+'" placeholder="Contoh: Perkembangan Hafalan"></div><div class="form-group"><label>Isi Catatan</label><textarea id="mCatIsi" rows="4" placeholder="Tulis catatan tentang santri...">'+(ct?.isi||'')+'</textarea></div><button class="btn btn-primary" onclick="saveCatatan('+(ct?.id||'')+')">Simpan</button><button class="btn btn-outline" onclick="closeModal()">Batal</button>';
+    html='<h3>'+(ct?'Edit':'Tambah')+' Catatan Guru</h3><div class="form-group"><label>Tanggal</label><input type="date" id="mCatTanggal" value="'+(ct?.tanggal||getTodayWIB())+'"></div><div class="form-group"><label>Santri</label><div style="position:relative"><input type="text" id="mCatSearch" placeholder="Ketik nama santri..." autocomplete="off" style="width:100%;padding:.6rem;border:1px solid #ddd;border-radius:8px;font-size:.9rem;box-sizing:border-box"><input type="hidden" id="mCatSantri"><div id="mCatSearchResults" style="position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #ddd;border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;display:none;z-index:100;box-shadow:0 4px 12px rgba(0,0,0,.1)"></div></div></div><div class="form-group"><label>Kategori</label><select id="mCatKategori"><option value="perilaku" '+(ct?.kategori==='perilaku'?'selected':'')+'>Perilaku</option><option value="akademik" '+(ct?.kategori==='akademik'?'selected':'')+'>Akademik</option><option value="kesehatan" '+(ct?.kategori==='kesehatan'?'selected':'')+'>Kesehatan</option><option value="lainnya" '+(ct?.kategori==='lainnya'||!ct?'selected':'')+'>Lainnya</option></select></div><div class="form-group"><label>Judul (opsional)</label><input id="mCatJudul" value="'+(ct?.judul||'')+'" placeholder="Contoh: Perkembangan Hafalan"></div><div class="form-group"><label>Isi Catatan</label><textarea id="mCatIsi" rows="4" placeholder="Tulis catatan tentang santri...">'+(ct?.isi||'')+'</textarea></div><button class="btn btn-primary" onclick="saveCatatan('+(ct?.id||'')+')">Simpan</button><button class="btn btn-outline" onclick="closeModal()">Batal</button>';
     $('modalContent').innerHTML=html;$('modalBg').classList.add('active');
-    api('/api/santri').then(data=>{if(data)data.forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=s.nama;if(ct?.santri_id===s.id)o.selected=true;$('mCatSantri').appendChild(o)})});
+    api('/api/santri').then(data=>{window._catSantriList=data||[];if(ct?.santri_id){const found=data?.find(s=>s.id===ct.santri_id);if(found){$('mCatSearch').value=found.nama;$('mCatSantri').value=found.id}}});
+    $('mCatSearch').addEventListener('input',function(){searchSantriCatatan(this.value)});
+    document.addEventListener('click',function catSearchClose(e){if(!e.target.closest('#mCatSearch')&&!e.target.closest('#mCatSearchResults')){$('mCatSearchResults').style.display='none'}});
   } else if(type==='kelas-sekolah'){
     html='<h3>Tambah Kelas</h3><div class="form-group"><label>Nama Kelas</label><input id="mNama" placeholder="Contoh: 7A, 8B, 9"></div><button class="btn btn-primary" onclick="saveKelasSekolah()">Simpan</button><button class="btn btn-outline" onclick="closeModal()">Batal</button>';
     $('modalContent').innerHTML=html;$('modalBg').classList.add('active');
@@ -3883,6 +3885,20 @@ function openRaportFor(id,nama){
 }
 let raportSearchTimeout=null;
 let pelSearchTimeout=null;
+let catSearchTimeout=null;
+function searchSantriCatatan(q){
+  const box=$('mCatSearchResults');
+  clearTimeout(catSearchTimeout);
+  catSearchTimeout=setTimeout(()=>{
+    const ql=q.toLowerCase().trim();
+    if(!ql){box.style.display='none';return}
+    const list=window._catSantriList||[];
+    const results=list.filter(s=>s.nama.toLowerCase().includes(ql)).slice(0,10);
+    if(!results.length){box.innerHTML='<div style="padding:.5rem .8rem;color:#888">Tidak ditemukan</div>';box.style.display='block';return}
+    box.innerHTML=results.map(s=>'<div style="padding:.5rem .8rem;cursor:pointer;border-bottom:1px solid #f0f0f0" onmouseover="this.style.background=\'#f5f5f5\'" onmouseout="this.style.background=\'#fff\'" onclick="$(\'mCatSantri\').value='+s.id+';$(\'mCatSearch\').value=\''+s.nama.replace(/'/g,"\\'")+'\';$(\'mCatSearchResults\').style.display=\'none\'">'+s.nama+' <span style="font-size:.75rem;color:#888">• '+(s.kelas_diniyyah||'-')+'</span></div>').join('');
+    box.style.display='block';
+  },200);
+}
 function searchSantriPelanggaran(q){
   const box=$('mPelSearchResults');
   clearTimeout(pelSearchTimeout);
@@ -4130,6 +4146,17 @@ async function exportExcel(){
   if(dari)url+='dari='+dari+'&';
   if(sampai)url+='sampai='+sampai+'&';
   if(kamar)url+='kamar_id='+kamar+'&';
+  if(typeof selectedRekapKegiatan==='number'){
+    const kegObj=_rekapKegiatanList.find(k=>k.id===selectedRekapKegiatan);
+    if(kegObj)url+='kelompok_tipe='+encodeURIComponent(kegObj.nama)+'&';
+  }else if(typeof selectedRekapKegiatan==='string'&&selectedRekapKegiatan.startsWith('tipe_')){
+    url+='kelompok_tipe='+encodeURIComponent(selectedRekapKegiatan.replace('tipe_',''))+'&';
+  }else if(selectedRekapKegiatan==='absen_sekolah'){
+    url+='kelompok_tipe=SEKOLAH&';
+  }else if(selectedRekapKegiatan==='absen_malam'){
+    url+='kelompok_tipe=Absen+Malam&';
+  }
+  if(rekapSelectedKelompokId)url+='kelompok_id='+rekapSelectedKelompokId+'&';
   const res=await fetch(url,{headers:{'Authorization':'Bearer '+tkn}});
   if(!res.ok){try{const e=await res.json();toast(e.message||'Gagal export')}catch(_){toast('Gagal export')}return}
   const blob=await res.blob();
@@ -4141,12 +4168,22 @@ function exportPDF(){
   const dari=$('rekapDari')?.value||'';
   const sampai=$('rekapSampai')?.value||'';
   const kamar=$('rekapKamar')?.value||'';
-  const kegiatan=selectedRekapKegiatan||'';
   let url='/api/export/pdf?';
   if(dari)url+='dari='+dari+'&';
   if(sampai)url+='sampai='+sampai+'&';
   if(kamar)url+='kamar_id='+kamar+'&';
-  if(kegiatan)url+='kegiatan_id='+kegiatan+'&';
+  // kelompok_tipe filter
+  if(typeof selectedRekapKegiatan==='number'){
+    const kegObj=_rekapKegiatanList.find(k=>k.id===selectedRekapKegiatan);
+    if(kegObj)url+='kelompok_tipe='+encodeURIComponent(kegObj.nama)+'&';
+  }else if(typeof selectedRekapKegiatan==='string'&&selectedRekapKegiatan.startsWith('tipe_')){
+    url+='kelompok_tipe='+encodeURIComponent(selectedRekapKegiatan.replace('tipe_',''))+'&';
+  }else if(selectedRekapKegiatan==='absen_sekolah'){
+    url+='kelompok_tipe=SEKOLAH&';
+  }else if(selectedRekapKegiatan==='absen_malam'){
+    url+='kelompok_tipe=Absen+Malam&';
+  }
+  if(rekapSelectedKelompokId)url+='kelompok_id='+rekapSelectedKelompokId+'&';
   fetch(url,{headers:{'Authorization':'Bearer '+tkn}}).then(r=>{if(!r.ok)return r.json().then(e=>{throw new Error(e.message||'Gagal export PDF')});return r.blob()}).then(blob=>{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='rekap-absensi.pdf';a.click()}).catch(e=>toast(e.message));
 }
 
